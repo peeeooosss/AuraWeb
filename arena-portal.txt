@@ -1,0 +1,698 @@
+GAMIFIED LEARNING ARENA — FULL ARCHITECTURE BLUEPRINT
+=============================================================================
+Subdomain: arena.tryauraai.in
+Target Audience: Students (ADRE, APSC, JEE, NEET), AI Learners, Competitive Exam Aspirants
+Pricing Tier: B2C Student Base (₹199/mo), B2C Creator Pro (₹399/mo)
+=============================================================================
+
+1. PORTAL IDENTITY
+-----------------------------------------------------------------------------
+The Vibe: High-energy, competitive, interactive. Feels like a gaming 
+tournament meets a learning platform. Every element screams momentum — 
+streaks, XP bars, fire emojis, leaderboard ranks.
+
+Color Palette:
+- Background Void:      #05070A
+- Background Base:      #0A0E14
+- Background Elevated:  #10151C
+- Background Panel:     #161C25
+- Surface Glass:        rgba(148, 163, 184, 0.04)
+- Border Glass:         rgba(148, 163, 184, 0.14)
+- Accent Cyan:          #2FF3E0 (primary actions, correct answers)
+- Accent Purple:        #B14EFF (secondary, premium badges)
+- Accent Amber:         #FFB020 (XP, streaks, fire, gamification)
+- Accent Danger:        #FF3D68 (wrong answers, errors)
+- Accent Green:         #22C55E (success, completion)
+- Text Primary:         #E9EEF5
+- Text Secondary:       #A6B0BF
+- Text Muted:           #626C7A
+
+Typography:
+- Display Font:   'Clash Display', 'Inter', sans-serif (headings, XP numbers)
+- Body Font:      'Inter', sans-serif (UI, lesson content)
+- Mono Font:      'JetBrains Mono', monospace (badges, scores, timers)
+
+Signature Visual Elements:
+- Fire/flame animated icon for streak counter (CSS flicker animation)
+- XP progress bar with gradient fill (amber to cyan)
+- Leaderboard podium with metallic gradients (gold, silver, bronze)
+- Streak counter with pulsing glow effect
+- Achievement badge cards with gradient borders
+- Quiz timer with circular progress ring
+
+2. LAYOUT ARCHITECTURE
+-----------------------------------------------------------------------------
+Overall Layout: Sidebar (collapsible) + Main Content Area
+Top Bar: Fixed glass-strong header (64px, z-index: 50)
+
+Navigation Structure:
++-----------------------------------------+
+| AURA AI                                 |
+|   - ChatBox           (MessageSquare) ★ PRIMARY — default landing page
+|                                         |
+| LEARN                                   |
+|   - AI Academy        (BookOpen)        |
+|   - Career Roadmaps   (Map)             |
++-----------------------------------------+
+| COMPETE                                 |
+|   - Quiz Arena        (Swords)          |
+|   - Tournaments       (Trophy)          |
+|   - Leaderboard       (Crown)           |
++-----------------------------------------+
+| PROGRESS                                |
+|   - My Achievements   (Medal)           |
+|   - Profile           (User)            |
++-----------------------------------------+
+| CONNECT                                 |
+|   - WhatsApp Bot      (MessageCircle)   |  ← toggleable +₹99
+|   - Telegram Bot      (Send)            |  ← Get Access +₹49
+|   - API Access        (Code)            |  ← Get Access +₹999
++-----------------------------------------+
+
+★ ChatBox is the PRIMARY feature — the first item in the sidebar, 
+  highlighted with a cyan glow. All other features are secondary.
+
+TopBar Left:   Logo + "Arena" brand text
+TopBar Center: Streak flame ("4 Days") + XP bar ("Lvl 3 · Scholar · 750/1000 XP")
+TopBar Right:  Notifications bell + Profile avatar
+
+3. PAGE-BY-PAGE BREAKDOWN
+-----------------------------------------------------------------------------
+
+PAGE 1: CHATBOX (/) ★ PRIMARY FEATURE
+  Purpose: ChatGPT-style AI chat interface — the CORE of the arena portal
+  Route: / (default landing page)
+  Layout: Split-screen (chat thread + output panel)
+  Components:
+    - ChatThread: Scrollable message list with AI/user bubbles
+      * AI messages: glass-panel background, left-aligned
+      * User messages: cyan gradient background, right-aligned
+      * Typing indicator: bouncing dots animation
+    - ChatInput: Textarea with auto-resize
+      * Paperclip button: Upload PDF (future)
+      * Image button: Upload image (future)
+      * Send button: cyan-to-purple gradient
+    - QuickActionChips: Shown on first load (when ≤1 message)
+      * "Architect my Capstone Project" → Document output (PDF)
+      * "Draft Panchayat Notice to Excel" → Spreadsheet output (XLSX)
+      * "Create a PPT on AI in Education" → Presentation output (PPTX)
+      * "Generate Instagram Content Strategy" → Image output
+      * "Write Python script for data analysis" → Code output
+    - OutputPanel: Right-side split panel (desktop) ★ SINGLE UNIFIED PANEL
+      * Adapts to output type automatically (no tabs)
+      * Shows live preview of generated content
+      * Action bar: Download + Copy Code buttons
+      * Empty state: "No output yet" placeholder
+      * Collapsible: "Show Output" / "Hide Output" toggle
+      * Mobile: Full-screen modal overlay
+  Output Types (5):
+    - Document: Rendered text with headings, paragraphs, formatting
+      * Preview: White page with formatted content (mini-Word doc)
+      * Download: PDF via jsPDF
+    - Spreadsheet: Interactive table grid
+      * Preview: Scrollable columns/rows, header row highlighted cyan
+      * Download: XLSX via SheetJS
+    - Presentation: Slide cards with gradient backgrounds
+      * Preview: Slide thumbnails, staggered reveal animation (Gamma-style)
+      * Animation: Slides appear one by one, 500ms apart, fade+slide
+      * Download: PPTX via PptxGenJS
+    - Image: Image tile grid
+      * Preview: 2x2 or 3x2 tile grid with gradient backgrounds
+      * Download: PNG via Canvas API
+    - Code: Syntax-highlighted code block
+      * Preview: Mono font, line numbers, language badge
+      * Download: .py / .js / etc. file
+      * Copy: Copy code to clipboard
+  State Variables:
+    - messages: array [{ role: 'ai'|'user', text: string, isConfirm?: boolean }]
+    - input: string
+    - panelOpen: boolean (output panel visibility)
+    - mobilePanelOpen: boolean (mobile panel overlay)
+    - currentOutput: { type, content } | null (active output)
+    - typing: boolean (AI typing indicator)
+    - pendingConfirm: { confirmType, prompt } | null (waiting for user confirmation)
+  Two-Phase Confirmation Flow:
+    Phase 1 (Confirm): User requests document → AI asks "Should I generate?"
+      * AI returns: { text: "message", type: "confirm", confirmType: "doc", prompt: "original request" }
+      * ChatBox renders ConfirmationCard with "Yes, generate" / "No, thanks" buttons
+      * Output panel stays hidden
+    Phase 2 (Generate): User clicks "Yes, generate" → AI generates content
+      * API call with mode: 'generate' → AI returns full content
+      * ChatBox renders Output panel with preview
+      * Output panel slides open automatically
+    Normal Chat: User asks question → AI responds with text only
+      * AI returns: { text: "response", type: null, content: null }
+      * Just shows text in chat. No Output panel.
+    Quick Action Chips: Skip confirmation, go directly to generation
+      * Chip click → send(text, { skipConfirm: true })
+      * API call with mode: 'generate' → AI generates content immediately
+  ConfirmationCard Component:
+    - Glass panel with cyan border glow
+    - Shows AI's confirmation message
+    - "Yes, generate" button: cyan-to-purple gradient
+    - "No, thanks" button: muted border
+    - Appears below the last AI message
+  AI Reply Structure:
+    - Each reply includes: text (displayed in chat) + type + content (for output panel)
+    - type: 'doc' | 'data' | 'ppt' | 'image' | 'code' | null
+    - content: Type-specific data (sections, columns, slides, tiles, code)
+  Download Libraries (client-side, zero server cost):
+    - jsPDF (90KB) — PDF generation
+    - SheetJS/xlsx (350KB) — XLSX generation
+    - PptxGenJS (200KB) — PPTX generation
+    - Canvas API (0KB) — PNG generation
+    - Total bundle: ~640KB (gzipped ~200KB)
+  Cost per document: ~₹0.02 (AI API call only, file generation is free)
+
+PAGE 2: DASHBOARD (/dashboard)
+  Purpose: Hub page — overview of learning progress, active quizzes, streaks
+  Layout: Full-width, multi-section
+  Components:
+    - WelcomeHeader: "Good evening, [Name]" + streak flame animation
+    - StreakCard: Large fire icon + "4 Day Streak!" + "Keep it going" subtitle
+    - XpProgressCard: Level badge + XP bar (750/1000) + "250 XP to next level"
+    - DailyChallenge: Today's featured quiz card with countdown timer
+    - RecentActivity: List of last 5 quiz results with scores
+    - LeaderboardPreview: Mini leaderboard showing user's current rank
+    - QuickActions: 3 cards
+      * "Start Quiz" (Swords icon, cyan)
+      * "Continue Lesson" (BookOpen icon, purple)
+      * "View Roadmap" (Map icon, amber)
+  State Variables:
+    - userStats: { level, xp, streak, rank, quizzesCompleted }
+    - recentActivity: array
+    - dailyChallenge: object | null
+
+PAGE 3: AI ACADEMY (/academy)
+  Purpose: Bite-sized AI lessons with progress tracking
+  Layout: Full-width, card grid
+  Components:
+    - CategoryTabs: Horizontal scrollable tabs (All, AI Basics, Prompting, Coding, Career)
+    - LessonGrid: Card grid of lessons (3-col desktop, 2-col tablet, 1-col mobile)
+      Each card:
+        - Lesson title
+        - Duration (e.g., "5 min")
+        - XP reward badge (e.g., "+25 XP")
+        - Progress indicator (completed: checkmark, in-progress: partial ring, not started: lock)
+        - Category tag (colored pill)
+    - ProgressSummary: "12/30 lessons completed · 320 XP earned"
+    - LessonPlayer: Full-screen lesson view (opens on card click)
+      * Markdown content renderer with syntax highlighting
+      * Embedded code examples (copyable)
+      * Inline quiz questions (2-3 per lesson)
+      * "Mark Complete" button at bottom
+      * Navigation: Previous / Next lesson
+  State Variables:
+    - lessons: array (all lessons with completion status)
+    - activeCategory: string
+    - currentLesson: object | null
+    - lessonProgress: object { lessonId: { completed, score, timeSpent } }
+
+PAGE 4: AI LESSONS DETAIL (/academy/[lessonId])
+  Purpose: Individual lesson view with content, quiz, and progress
+  Layout: Single column, scrollable
+  Components:
+    - LessonHeader: Title + category + duration + XP reward
+    - ContentRenderer: Markdown renderer with:
+      * Headings (h1-h4)
+      * Paragraphs with inline code
+      * Code blocks with syntax highlighting + copy button
+      * Images/diagrams
+      * Callout boxes (info, warning, tip)
+    - InlineQuiz: 2-3 MCQ questions embedded in lesson
+      * Question text
+      * 4 option buttons (A/B/C/D)
+      * Immediate feedback (green check / red X)
+      * Explanation shown after answer
+    - LessonFooter:
+      * "Mark as Complete" button (awards XP)
+      * "Next Lesson" button
+      * Progress bar (scroll-based)
+  State Variables:
+    - lesson: object (fetched content)
+    - answers: object { questionId: selectedOption }
+    - completed: boolean
+
+PAGE 5: QUIZ ARENA (/quiz)
+  Purpose: Core competitive quiz experience
+  Layout: Full-width, centered
+  Components:
+    - QuizSetup:
+      * Subject selector (ADRE, APSC, JEE, NEET, AI Basics, General)
+      * Difficulty selector (Easy, Medium, Hard)
+      * Question count (10, 20, 50)
+      * Mode selector (Solo Practice, Challenge Friend, Tournament)
+      * "Generate Quiz" primary button
+    - QuizPlayer (active quiz):
+      * Progress bar (question X of Y)
+      * Timer (circular countdown, turns red at 10s)
+      * Question card (large, centered)
+      * 4 option cards (2x2 grid, touch-friendly)
+      * Question navigator (numbered grid, shows answered/unanswered/marked)
+      * Submit button (appears after all answered)
+    - QuizResults:
+      * Score circle (percentage, animated fill)
+      * Correct/Wrong/Skipped counts
+      * XP earned (animated counter)
+      * Rank change (up/down arrow with number)
+      * "Share Results" button (generates share card)
+      * "Review Answers" button (shows all questions with correct answers)
+      * "Try Again" button
+    - LiveActivityFeed:
+      * "Live from the Arena" header
+      * Recent quiz completions by other users
+      * Each entry: avatar, name, score, time, challenge button
+  State Variables:
+    - quizSetup: { subject, difficulty, count, mode }
+    - currentQuiz: { questions: [], currentIndex, answers: {} }
+    - quizState: 'setup' | 'playing' | 'review' | 'results'
+    - timer: number (seconds remaining)
+    - results: { score, correct, wrong, skipped, xpEarned, rankChange }
+
+PAGE 6: TOURNAMENTS (/tournaments)
+  Purpose: Weekly competitive tournaments with brackets
+  Layout: Full-width, tournament cards + bracket view
+  Components:
+    - ActiveTournaments: Cards showing ongoing tournaments
+      * Tournament name + theme (e.g., "ADRE Speed Challenge")
+      * Time remaining (countdown)
+      * Participants count
+      * Prize pool
+      * "Join" button
+    - UpcomingTournaments: Cards showing future tournaments
+      * Start date/time
+      * Registration deadline
+      * "Register" button
+    - PastTournaments: Results archive
+      * Winner name + score
+      * Your rank (if participated)
+      * "View Bracket" button
+    - TournamentBracket: Single-elimination bracket visualization
+      * Round columns (Round 1, Quarters, Semis, Finals)
+      * Match cards with player names + scores
+      * Advancing player highlighted
+  State Variables:
+    - tournaments: { active, upcoming, past }
+    - selectedTournament: object | null
+    - bracket: object (bracket structure)
+
+PAGE 7: LEADERBOARD (/leaderboard)
+  Purpose: Global, regional, and friend rankings
+  Layout: Full-width, centered
+  Components:
+    - LeaderboardTabs: Global | Regional | Friends | Category
+    - Podium: Top 3 displayed prominently
+      * Rank 1: Center, tallest podium (h-40), gold medal, crown icon
+      * Rank 2: Left, medium podium (h-32), silver medal
+      * Rank 3: Right, shortest podium (h-24), bronze medal
+      * Each shows: avatar, name, XP/invites, prize
+    - RankingTable: Ranks 4-N in grid rows
+      * Columns: #, User, Score/Invites, Reward
+      * Current user highlighted with violet background
+      * Alternating row opacity
+    - UserRankCard: Fixed at bottom showing current user's rank + stats
+    - FilterDropdown: Time period (All Time, This Month, This Week)
+  State Variables:
+    - leaderboard: array (ranked users)
+    - activeTab: 'global' | 'regional' | 'friends' | 'category'
+    - timePeriod: 'all' | 'month' | 'week'
+    - userRank: { rank, score, totalUsers }
+
+PAGE 8: CAREER ROADMAPS (/roadmaps)
+  Purpose: AI-generated personalized career paths
+  Layout: Full-width, visual timeline
+  Components:
+    - RoadmapSelector: Career cards (Software Dev, Data Scientist, Product Manager, etc.)
+    - RoadmapTimeline: Vertical timeline with steps
+      * Each step: icon + title + description + resources + estimated time
+      * Completed steps: green check + filled circle
+      * Current step: pulsing cyan circle
+      * Future steps: muted, locked
+    - MilestoneCards: Major milestones with achievements
+    - ResourceLinks: External learning resources per step
+    - ProgressSidebar: Overall completion percentage + estimated time remaining
+  State Variables:
+    - roadmaps: array (available career paths)
+    - activeRoadmap: object
+    - completedSteps: array
+
+PAGE 9: MY ACHIEVEMENTS (/achievements)
+  Purpose: Badge collection, streaks, and XP history
+  Layout: Full-width, sections
+  Components:
+    - BadgeGrid: All achievement badges (locked/unlocked)
+      * Unlocked: Full color, glow effect, unlock date
+      * Locked: Muted, silhouette, "How to unlock" hint
+      * Badge categories: Quiz Master, Streak King, Social Butterfly, etc.
+    - StreakCalendar: GitHub-style contribution graph
+      * Green squares for active days
+      * Dark squares for inactive days
+      * Hover shows date + activity
+    - XpHistory: Line chart of XP earned over time
+    - StatsOverview: Total quizzes, avg score, total time, favorite subject
+  State Variables:
+    - badges: array (all badges with unlock status)
+    - streakData: array (date + activity boolean)
+    - xpHistory: array (date + xp earned)
+    - stats: object
+
+PAGE 10: PROFILE (/profile)
+  Purpose: User profile, settings, subscription
+  Layout: 2-column (avatar/settings sidebar + content)
+  Components:
+    - AvatarSection: Large avatar + name + join date + level badge
+    - ProfileStats: Grid of key stats (total XP, quizzes, rank, streak)
+    - EditProfile: Name, email, avatar upload
+    - SubscriptionInfo: Current plan, renewal date, upgrade button
+    - NotificationSettings: Toggle switches for email/push notifications
+    - PrivacySettings: Profile visibility, leaderboard opt-in
+  State Variables:
+    - profile: object
+    - subscription: object
+
+4. COMPONENT ARCHITECTURE
+-----------------------------------------------------------------------------
+
+Atomic Components:
+  Button:        Variants: primary, secondary, ghost, danger, xp (amber gradient)
+  Input:         Variants: text, search, select
+  Badge:         Variants: xp, level, streak, category, locked
+  Card:          Variants: lesson, quiz, tournament, achievement
+  ProgressBar:   Variants: linear (XP bar), circular (quiz timer)
+  Avatar:        Variants: sm (32px), md (48px), lg (80px), xl (120px)
+  Modal:         Overlay dialog with backdrop blur
+  Toast:         Slide-in notification (success/error/xp-gain)
+  Tabs:          Horizontal scrollable tab strip
+
+Composite Components:
+  QuizPlayer:    Timer + question card + option grid + navigator
+  LeaderboardTable: Podium + ranking rows + user highlight
+  LessonCard:    Thumbnail + title + progress + XP badge
+  AchievementBadge: Icon + name + lock state + glow effect
+  StreakCalendar: 7-column grid of day cells
+  IntegrationRow: Icon + name + price + toggle/badge (for CONNECT section)
+  OutputPanel:   Single unified panel for all generated content (doc/ppt/xlsx/image/code)
+  ChatBox:       Split-screen chat thread + output panel (primary landing page)
+  ShareCard:     Auto-generated image for social sharing
+
+Layout Components:
+  TopBar:        Fixed header with streak + XP + profile
+  Sidebar:       Collapsible navigation with ChatBox as primary, zone headers for secondary
+  ContentArea:   Scrollable main content with max-width
+  ChatBox:       Split-screen chat thread + context panel (primary landing page)
+
+5. DATA MODEL
+-----------------------------------------------------------------------------
+
+Static Data (Client-Side JSON):
+
+LESSONS = [
+  { id, title, category, duration, xp, difficulty, content, quiz: [{question, options, correct, explanation}] }
+]
+
+EXAMS = [
+  { id: 'adre', name: 'ADRE', full: 'Assam Direct Recruitment Exam', icon, aspirants: '2.5L+' },
+  { id: 'apsc', name: 'APSC', full: 'Assam Public Service Commission', icon, aspirants: '50K+' },
+  { id: 'jee', name: 'JEE', full: 'Joint Entrance Examination', icon, aspirants: '12L+' },
+  { id: 'neet', name: 'NEET', full: 'National Eligibility cum Entrance Test', icon, aspirants: '18L+' }
+]
+
+EXAM_DETAILS = {
+  adre: {
+    timeline: [[step, date], ...],
+    cutoff: { label, value, trend, up },
+    books: [{ title, author, price, rating }]
+  }
+}
+
+BADGES = [
+  { id, name, description, icon, category, requirement: 'Complete 10 quizzes' | '7-day streak' | etc. }
+]
+
+CAREER_ROADMAPS = [
+  { id, title, steps: [{ title, description, resources, estimatedTime, milestone }] }
+]
+
+Supabase Tables:
+  user_stats:
+    - user_id: uuid (primary key)
+    - level: integer (default 1)
+    - xp: integer (default 0)
+    - streak: integer (default 0)
+    - last_active: timestamp
+    - total_quizzes: integer
+    - avg_score: float
+    - total_time_spent: integer (minutes)
+
+  quiz_history:
+    - id: uuid (primary key)
+    - user_id: uuid (foreign key)
+    - subject: text
+    - difficulty: text
+    - score: integer (correct count)
+    - total: integer (question count)
+    - time_taken: integer (seconds)
+    - xp_earned: integer
+    - created_at: timestamp
+
+  lesson_progress:
+    - user_id: uuid (foreign key)
+    - lesson_id: text
+    - completed: boolean (default false)
+    - score: integer (nullable)
+    - time_spent: integer (seconds)
+    - completed_at: timestamp (nullable)
+
+  achievements:
+    - user_id: uuid (foreign key)
+    - badge_id: text
+    - unlocked_at: timestamp
+
+  streaks:
+    - user_id: uuid (foreign key)
+    - date: date
+    - active: boolean (default true)
+
+  leaderboards:
+    - user_id: uuid (foreign key)
+    - period: text ('all_time' | 'monthly' | 'weekly')
+    - category: text ('overall' | 'exam_prep' | 'ai_lessons')
+    - score: integer
+    - rank: integer (computed via Supabase RPC)
+
+6. API ENDPOINTS
+-----------------------------------------------------------------------------
+
+POST   /api/chat/send           Send message to AI, get response
+POST   /api/chat/upload         Upload PDF/image for context
+GET    /api/chat/history        Get chat message history
+
+POST   /api/quiz/generate     Generate quiz from subject/difficulty/count
+POST   /api/quiz/submit       Submit quiz answers, calculate score + XP
+GET    /api/quiz/history      Get user's quiz history
+GET    /api/quiz/daily        Get daily challenge quiz
+
+GET    /api/lessons           List all lessons (with user progress)
+GET    /api/lessons/:id       Get lesson content + quiz
+POST   /api/lessons/:id/complete  Mark lesson complete, award XP
+
+GET    /api/leaderboard       Get leaderboard (with period/category filters)
+GET    /api/leaderboard/me    Get current user's rank
+
+GET    /api/tournaments       List tournaments (active/upcoming/past)
+POST   /api/tournaments/:id/join   Join tournament
+GET    /api/tournaments/:id/bracket Get tournament bracket
+
+GET    /api/roadmaps          List available career roadmaps
+GET    /api/roadmaps/:id      Get roadmap with user progress
+POST   /api/roadmaps/:id/step/:stepId/complete  Mark step complete
+
+GET    /api/achievements      Get user's badges (unlocked + locked)
+GET    /api/streak            Get streak data for calendar
+GET    /api/stats             Get user's aggregate stats
+
+POST   /api/share/generate    Generate share card image (score + badge)
+POST   /api/share/challenge   Generate challenge link for friend
+
+External Integrations:
+  - OpenRouter: Task 2 (gemini-1.5-flash) for quiz generation
+  - OpenRouter: Task 1 (llama-3-8b-instruct) for AI lesson explanations
+  - OpenRouter: Task 2 (gemini-1.5-flash) for career roadmap generation
+
+7. INTERACTIONS & ANIMATIONS
+-----------------------------------------------------------------------------
+
+Page Transitions:
+  - Dashboard -> Quiz: Scale up + fade (0.3s)
+  - Quiz Setup -> Playing: Slide left (0.3s)
+  - Quiz Playing -> Results: Confetti burst + score circle fill (0.5s)
+  - Any -> Leaderboard: Fade in (0.2s)
+
+Component Interactions:
+  - XP bar fill: Animated width transition (1s ease-out)
+  - Streak flame: CSS flicker animation (1.6s infinite)
+  - Quiz option hover: Scale up slightly (1.02) + border glow
+  - Quiz option selected: Cyan border + checkmark appears
+  - Quiz correct answer: Green flash + bounce
+  - Quiz wrong answer: Red shake (3px horizontal, 0.3s)
+  - Leaderboard rank change: Slide up/down with number counter
+  - Achievement badge unlock: Scale from 0 + glow burst + confetti
+  - Share card generation: Flip animation + download trigger
+  - Timer countdown: Color transitions (green -> yellow -> red)
+
+CSS Keyframes:
+  @keyframes flicker {
+    0%, 100% { transform: scale(1) rotate(0); opacity: 1; }
+    50% { transform: scale(1.1) rotate(-3deg); opacity: 0.9; }
+  }
+  @keyframes confetti-burst {
+    0% { transform: translateY(0) rotate(0); opacity: 1; }
+    100% { transform: translateY(-100px) rotate(720deg); opacity: 0; }
+  }
+  @keyframes score-fill {
+    0% { stroke-dashoffset: 283; }
+    100% { stroke-dashoffset: var(--target); }
+  }
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-3px); }
+    75% { transform: translateX(3px); }
+  }
+  @keyframes badge-unlock {
+    0% { transform: scale(0) rotate(-180deg); opacity: 0; }
+    60% { transform: scale(1.2) rotate(10deg); }
+    100% { transform: scale(1) rotate(0); opacity: 1; }
+  }
+
+Loading States:
+  - Quiz generation: Spinner + "Generating your quiz..."
+  - Leaderboard: Skeleton rows
+  - Lessons: Skeleton card grid
+
+Empty States:
+  - No quiz history: "No quizzes yet. Start your first challenge!"
+  - No achievements: "Your badge collection is empty. Complete quizzes to earn badges."
+  - No friends on leaderboard: "Invite friends to compete!"
+
+Error States:
+  - Quiz generation failed: "Couldn't generate quiz. Try again."
+  - Timer expired: "Time's up!" + auto-submit with score for answered questions
+
+8. RESPONSIVE DESIGN
+-----------------------------------------------------------------------------
+
+Desktop (1200px+):
+  - Full sidebar visible (260px)
+  - Quiz options in 2x2 grid
+  - Leaderboard: podium + table side by side
+  - Lesson player: content + sidebar TOC
+
+Tablet (768px-1199px):
+  - Sidebar collapsed to icons (64px)
+  - Quiz options in 2x2 grid
+  - Leaderboard: podium above table
+  - Lesson player: content full width
+
+Mobile (< 768px):
+  - Sidebar: Bottom tab bar (5 items: Home/ChatBox, Learn, Quiz, Leaderboard, Profile)
+  - ChatBox: Full-screen chat, context panel via modal overlay
+  - Quiz options: Full-width stacked (1 column)
+  - Timer: Compact circular (smaller)
+  - Leaderboard: Podium only for top 3, scroll for rest
+  - Lesson player: Full-screen with bottom nav hidden
+  - Share card: Full-width with larger text
+  - Streak calendar: Compact (smaller cells)
+
+Breakpoint Rules:
+  @media (max-width: 768px) {
+    .sidebar { display: none; } /* Replaced by bottom nav */
+    .quiz-options { grid-template-columns: 1fr !important; }
+    .leaderboard-podium { gap: 8px; }
+    .podium-height-1 { height: 100px; }
+    .podium-height-2 { height: 80px; }
+    .podium-height-3 { height: 60px; }
+    .lesson-player { padding: 16px; }
+    .streak-calendar { gap: 2px; }
+  }
+
+9. TECH STACK
+-----------------------------------------------------------------------------
+
+Framework:        React (Vite build)
+Router:           React Router v6
+State Management: React useState + useContext
+Styling:          Tailwind CSS + CSS custom properties
+Animations:       Framer Motion (page transitions, modals) + CSS keyframes
+Charts:           Recharts (XP history line chart)
+Calendar:         Custom grid component (GitHub-style)
+Database:         Supabase PostgreSQL + Row Level Security
+Auth:             Supabase Auth (OAuth2 + Email)
+AI/LLM:           OpenRouter API (Task 2: gemini-1.5-flash for quiz gen)
+Image Gen:        Canvas API for share card generation
+Key Libraries:
+  - framer-motion       Animations
+  - lucide-react        Icons
+  - recharts            Charts
+  - @supabase/supabase-js  Database + Auth
+  - html2canvas         Share card image generation
+  - date-fns            Date utilities
+
+10. INTEGRATIONS & CONNECT SECTION
+-----------------------------------------------------------------------------
+
+The CONNECT section in the sidebar allows users to enable premium 
+integrations. Each integration is a row with icon, name, price, and 
+either a toggle switch (for enabled integrations) or a "Get Access" 
+badge (for ones not yet purchased).
+
+Integration Tiers:
+
+  WhatsApp Bot (+₹99/mo)
+    Status: Active (toggleable in sidebar)
+    What: AI chatbot deployed to user's WhatsApp number
+    Use case: Students chat with AuraAI via WhatsApp for quick queries
+    Tech: WhatsApp Business API + OpenRouter (Task 2)
+    Toggle: Cyan when ON, zinc when OFF
+
+  Telegram Bot (+₹49/mo)
+    Status: Get Access (links to pricing page)
+    What: AI chatbot deployed to Telegram
+    Use case: Telegram is popular among Indian students for study groups
+    Tech: Telegram Bot API + OpenRouter (Task 2)
+    Badge: "Get Access" pill, muted
+
+  API Access (+₹999/mo)
+    Status: Get Access (links to pricing page)
+    What: Developer API for custom integrations
+    Use case: Power users, educators building custom tools
+    Tech: REST API + OpenRouter (Task 2: gemini-1.5-flash)
+    Badge: "Get Access" pill, muted
+
+  Future Integrations (not yet in sidebar):
+    - Discord Bot (+₹79/mo) — for communities/servers
+    - Slack Integration (+₹149/mo) — for teams/educators
+    - Notion Integration (+₹69/mo) — for note-taking workflows
+    - Google Sheets (+₹59/mo) — for data export/automation
+
+Component: IntegrationRow
+  Layout: [icon] [name] [price] [toggle OR badge]
+  Props: { id, label, icon, price, enabled, onToggle }
+  Styling:
+    - Row: flex items-center, hover:bg-white/5, rounded-xl
+    - Icon: 17px, cyan when enabled, zinc when disabled
+    - Name: font-medium, white when enabled, zinc-400 when disabled
+    - Price: font-mono text-2xs text-zinc-600
+    - Toggle: w-9 h-5 rounded-full, cyan-400 when on, zinc-700 when off
+    - Badge: text-2xs px-2 py-1 rounded-md bg-white/5 border-white/10
+
+State:
+  - integrations: { whatsapp: boolean, telegram: boolean, api: boolean }
+  - Managed locally in Sidebar component (useState)
+  - Future: Persist to user profile in Supabase
+
+API Endpoints (future):
+  GET    /api/integrations         List available integrations
+  POST   /api/integrations/:id/enable   Enable integration
+  POST   /api/integrations/:id/disable  Disable integration
+  GET    /api/integrations/:id/status   Check integration status
+=============================================================================

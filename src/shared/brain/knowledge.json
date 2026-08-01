@@ -1,0 +1,92 @@
+[
+  {
+    "id": "jee_main",
+    "keywords": ["jee", "main", "engineering", "entrance", "nta", "nit", "iiit"],
+    "question": "What is JEE Main?",
+    "answer": "JEE Main is India's engineering entrance exam for NITs, IIITs, and other central institutions. Conducted by NTA twice yearly (January & April). Covers Physics, Chemistry, Mathematics. 75 questions, 300 marks, 3 hours. Class 11 topics carry ~55% weightage."
+  },
+  {
+    "id": "jee_advanced",
+    "keywords": ["jee", "advanced", "iit", "iisc"],
+    "question": "What is JEE Advanced?",
+    "answer": "JEE Advanced is the entrance exam for IITs and IISc. Only top 2.5 lakh JEE Main qualifiers can appear. Conducted by one of the IITs annually. Covers Physics, Chemistry, Math with higher difficulty than Main."
+  },
+  {
+    "id": "neet",
+    "keywords": ["neet", "medical", "doctor", "mbbs", "aiims", "bdss"],
+    "question": "What is NEET?",
+    "answer": "NEET is India's medical entrance exam for MBBS/BDS/Ayush courses. Conducted by NTA. Covers Physics, Chemistry, Biology (Botany + Zoology). 200 questions, 720 marks, 3 hours 20 minutes. Need PCB in Class 12 with 50%+ marks."
+  },
+  {
+    "id": "adre",
+    "keywords": ["adre", "assam", "direct", "recruitment", "grade", "government"],
+    "question": "What is ADRE?",
+    "answer": "ADRE is Assam Direct Recruitment Exam for government jobs in Assam. Conducted by SEBA/Board of Secondary Education Assam. Covers General Knowledge, English, Math, Reasoning. Multiple grades (Grade 3, Grade 4)."
+  },
+  {
+    "id": "apsc",
+    "keywords": ["apsc", "assam", "public", "service", "commission", "civil"],
+    "question": "What is APSC?",
+    "answer": "APSC is Assam Public Service Commission for state civil services. Conducts exams for Assam Civil Service, Police Service, and other state government positions. Includes Prelims, Mains, and Interview."
+  },
+  {
+    "id": "cbse_class12",
+    "keywords": ["cbse", "class", "12", "board", "exam", "syllabus", "10"],
+    "question": "What is CBSE Class 12 syllabus?",
+    "answer": "CBSE Class 12 covers Physics, Chemistry, Math/Biology, English, and optional subjects. Board exams in February-March. Important for JEE/NEET preparation. NCERT textbooks are the foundation."
+  },
+  {
+    "id": "study_tips",
+    "keywords": ["study", "tips", "how", "prepare", "plan", "effective"],
+    "question": "How to study effectively?",
+    "answer": "Follow Pomodoro technique (25 min study + 5 min break). Revise daily. Solve previous year papers. Make short notes. Focus on NCERT first. Take mock tests weekly. Study 6-8 hours daily for competitive exams."
+  },
+  {
+    "id": "career_engineering",
+    "keywords": ["career", "engineering", "which", "branch", "best", "cse"],
+    "question": "Which engineering branch is best?",
+    "answer": "Top branches: Computer Science (highest placement), Electronics, Mechanical, Civil, Electrical. Choose based on interest, not just placement. CSE has most jobs but highest competition."
+  },
+  {
+    "id": "career_medical",
+    "keywords": ["career", "medical", "doctor", "mbbs", "neet"],
+    "question": "How to become a doctor?",
+    "answer": "Clear NEET exam → MBBS (5.5 years) → Internship (1 year) → Specialization (MD/MS, 3 years). Total: ~10 years. Need PCB in Class 12 with 50%+ marks."
+  },
+  {
+    "id": "ncert_importance",
+    "keywords": ["ncert", "important", "textbook", "foundation"],
+    "question": "Why is NCERT important?",
+    "answer": "NCERT textbooks are the foundation for JEE, NEET, and CBSE board exams. 80%+ questions come directly from NCERT concepts. Read every line, especially for Biology and Chemistry."
+  },
+  {
+    "id": "time_management",
+    "keywords": ["time", "management", "schedule", "routine", "daily"],
+    "question": "How to manage time for study?",
+    "answer": "Create a daily schedule: Morning (tough subjects), Afternoon (moderate), Evening (light revision). Use Pomodoro technique. Sleep 7-8 hours. Exercise 30 minutes. Avoid phone during study hours."
+  },
+  {
+    "id": "exam_strategy",
+    "keywords": ["exam", "strategy", "attempt", "paper", "test"],
+    "question": "How to attempt exam paper?",
+    "answer": "Start with easy questions first (confidence boost). Mark difficult ones for later. Don't spend >2 min on one question. Negative marking? Only attempt if sure. Last 15 min: review marked answers."
+  },
+  {
+    "id": "python_basics",
+    "keywords": ["python", "programming", "code", "beginner", "learn"],
+    "question": "How to start learning Python?",
+    "answer": "Start with: variables, data types, loops, functions, lists, dictionaries. Practice on HackerRank/LeetCode. Build small projects (calculator, to-do list). Free resources: Python.org docs, W3Schools, YouTube tutorials."
+  },
+  {
+    "id": "web_development",
+    "keywords": ["web", "development", "html", "css", "javascript", "frontend"],
+    "question": "How to start web development?",
+    "answer": "Learn HTML (structure) → CSS (styling) → JavaScript (logic) → React (framework). Build 3-5 projects. Free resources: freeCodeCamp, MDN Web Docs, JavaScript.info."
+  },
+  {
+    "id": "scholarships",
+    "keywords": ["scholarship", "fee", "financial", "help", "assam"],
+    "question": "What scholarships are available?",
+    "answer": "Major scholarships: INSPIRE (JEE/NEET top performers), AICTE Pragati (girls in engineering), PM Scholarship Scheme, Assam Scholarship Portal. Apply through National Scholarship Portal (scholarships.gov.in)."
+  }
+]

@@ -1,0 +1,206 @@
+/* Tablely — Custom styles (compatible with Tailwind v3) */
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700;9..144,900&family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+:root {
+  /* Color tokens: "Order Ticket" system */
+  --color-ink: #17181c;
+  --color-ink-soft: #2b2d33;
+  --color-paper: #f7f1e2;
+  --color-paper-dim: #efe6cf;
+  --color-paper-line: #ded2ab;
+  --color-marigold: #e8a33d;
+  --color-marigold-dark: #c07c1f;
+  --color-teal: #123a41;
+  --color-teal-soft: #1c4d55;
+  --color-chili: #c1432f;
+  --color-sage: #4c7a5d;
+
+  --font-display: "Fraunces", ui-serif, Georgia, serif;
+  --font-body: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+#tablely-root {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+
+#tablely-root ::selection {
+  background: var(--color-marigold);
+  color: var(--color-ink);
+}
+
+#tablely-root :focus-visible {
+  outline: 2px solid var(--color-marigold-dark);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #tablely-root *, #tablely-root *::before, #tablely-root *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Signature: perforated ticket-chit motif */
+#tablely-root .ticket {
+  position: relative;
+  background: var(--color-paper);
+  border: 1px solid var(--color-paper-line);
+  border-radius: 2px;
+}
+
+#tablely-root .ticket::before {
+  content: "";
+  position: absolute;
+  top: -9px;
+  left: 12px;
+  right: 12px;
+  height: 18px;
+  background-image: radial-gradient(circle at 9px 9px, transparent 8px, var(--color-paper) 8.5px);
+  background-size: 18px 18px;
+  background-repeat: repeat-x;
+  background-position: 0 0;
+}
+
+#tablely-root .ticket-dark::before {
+  background-image: radial-gradient(circle at 9px 9px, transparent 8px, var(--color-teal) 8.5px);
+}
+
+#tablely-root .ticket-dark {
+  background: var(--color-teal);
+  border-color: rgba(247, 241, 226, 0.14);
+}
+
+#tablely-root .perf-divider {
+  border-top: 1.5px dashed var(--theme-line);
+}
+
+#tablely-root .tabular {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─── Customer Menu Themes ─────────────────────────────── */
+
+.menu-theme-classic {
+  --theme-bg: var(--color-paper);
+  --theme-surface: #fff;
+  --theme-line: var(--color-paper-line);
+  --theme-text: var(--color-ink);
+  --theme-soft: #6b6553;
+  --theme-accent: var(--color-marigold);
+  --theme-accent-dark: var(--color-marigold-dark);
+  --theme-chip-bg: rgba(232, 163, 61, 0.15);
+  --theme-chip-text: var(--color-marigold-dark);
+  --theme-card-shadow: none;
+  --theme-card-radius: 2px;
+}
+
+.menu-theme-midnight {
+  --theme-bg: #141519;
+  --theme-surface: #1e2026;
+  --theme-line: rgba(247, 241, 226, 0.1);
+  --theme-text: #f7f1e2;
+  --theme-soft: #a9a294;
+  --theme-accent: #e8a33d;
+  --theme-accent-dark: #c07c1f;
+  --theme-chip-bg: rgba(232, 163, 61, 0.18);
+  --theme-chip-text: #e8a33d;
+  --theme-card-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  --theme-card-radius: 6px;
+}
+
+.menu-theme-modern {
+  --theme-bg: #f4f5f7;
+  --theme-surface: #ffffff;
+  --theme-line: #e0e3e8;
+  --theme-text: #17181c;
+  --theme-soft: #6b7280;
+  --theme-accent: #123a41;
+  --theme-accent-dark: #0d2a30;
+  --theme-chip-bg: rgba(18, 58, 65, 0.1);
+  --theme-chip-text: #123a41;
+  --theme-card-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  --theme-card-radius: 10px;
+}
+
+.theme-screen {
+  background: var(--theme-bg);
+  color: var(--theme-text);
+}
+
+.theme-card {
+  background: var(--theme-surface);
+  border: 1px solid var(--theme-line);
+  border-radius: var(--theme-card-radius);
+  box-shadow: var(--theme-card-shadow);
+}
+
+.theme-card-sm {
+  background: var(--theme-surface);
+  border: 1px solid var(--theme-line);
+  border-radius: var(--theme-card-radius);
+}
+
+.fast-delivery-section {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.05), rgba(34, 197, 94, 0.02));
+  border: 1px solid rgba(34, 197, 94, 0.2);
+}
+
+.theme-soft { color: var(--theme-soft); }
+.theme-accent { color: var(--theme-accent); }
+.theme-accent-dark { color: var(--theme-accent-dark); }
+
+.theme-chip {
+  background: var(--theme-chip-bg);
+  color: var(--theme-chip-text);
+}
+
+.theme-line { border-color: var(--theme-line); }
+
+.theme-input {
+  border: 1px solid var(--theme-line);
+  background: var(--theme-surface);
+  color: var(--theme-text);
+}
+
+.theme-input::placeholder {
+  color: var(--theme-soft);
+  opacity: 0.6;
+}
+
+.theme-btn-primary {
+  background: var(--theme-accent);
+  color: #fff;
+}
+
+.theme-btn-primary:hover {
+  background: var(--theme-accent-dark);
+}
+
+.theme-btn-outline {
+  border: 1px solid var(--theme-line);
+  background: transparent;
+  color: var(--theme-text);
+}
+
+.theme-btn-outline:hover {
+  background: var(--theme-surface);
+}
+
+.theme-divider {
+  border-top: 1.5px dashed var(--theme-line);
+}
+
+.theme-cart-bar {
+  border-top: 1px solid var(--theme-line);
+  background: color-mix(in srgb, var(--theme-bg) 95%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}

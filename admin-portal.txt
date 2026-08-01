@@ -1,0 +1,588 @@
+ADMIN PANEL — FULL ARCHITECTURE BLUEPRINT
+=============================================================================
+Subdomain: admin.tryauraai.in
+Target Audience: Founder (Piyush Bhuyan) — Internal Only
+Pricing Tier: N/A (Internal tool)
+Access: Email-based auth, founder-only via Supabase RLS
+=============================================================================
+
+1. PORTAL IDENTITY
+-----------------------------------------------------------------------------
+The Vibe: Dense data dashboard, charts, tables, real-time metrics. 
+Feels like a control center — Mission Control for AuraAI. Every pixel 
+carries information. No decorative elements.
+
+Color Palette:
+- Background Void:      #05070A
+- Background Base:      #0A0E14
+- Background Elevated:  #10151C
+- Background Panel:     #161C25
+- Surface Glass:        rgba(148, 163, 184, 0.04)
+- Border Glass:         rgba(148, 163, 184, 0.14)
+- Accent Cyan:          #2FF3E0 (primary, positive metrics)
+- Accent Purple:        #B14EFF (secondary, premium users)
+- Accent Amber:         #FFB020 (warnings, alerts)
+- Accent Danger:        #FF3D68 (critical alerts, churned users)
+- Accent Green:         #22C55E (growth, success)
+- Text Primary:         #E9EEF5
+- Text Secondary:       #A6B0BF
+- Text Muted:           #626C7A
+
+Typography:
+- Display Font:   'Clash Display', 'Inter', sans-serif (headings, big numbers)
+- Body Font:      'Inter', sans-serif (table data, descriptions)
+- Mono Font:      'JetBrains Mono', monospace (IDs, API keys, logs)
+
+Signature Visual Elements:
+- Dense metric cards with sparkline mini-charts
+- Real-time updating numbers (WebSocket or polling)
+- Color-coded status indicators (green/amber/red dots)
+- Data tables with inline editing
+- Alert banners for critical events
+
+2. LAYOUT ARCHITECTURE
+-----------------------------------------------------------------------------
+Overall Layout: Sidebar (fixed, 240px) + Top Bar + Main Content Area
+
+Navigation Structure:
++-----------------------------------------+
+| OVERVIEW                                |
+|   - Dashboard         (LayoutDashboard) |
+|   - Real-Time Monitor (Activity)        |
++-----------------------------------------+
+| USERS                                   |
+|   - All Users         (Users)           |
+|   - Subscriptions     (CreditCard)      |
+|   - Referrals         (Share2)          |
++-----------------------------------------+
+| REVENUE                                 |
+|   - Revenue Dashboard (IndianRupee)     |
+|   - Transactions      (Receipt)         |
+|   - Payouts           (Wallet)          |
++-----------------------------------------+
+| CONTENT                                 |
+|   - AI Lessons        (BookOpen)        |
+|   - Quiz Arena        (Swords)          |
+|   - Exam Vault        (FileText)        |
++-----------------------------------------+
+| API & SYSTEM                            |
+|   - API Analytics     (BarChart3)       |
+|   - System Health     (Heart)           |
+|   - Logs              (Terminal)        |
++-----------------------------------------+
+
+TopBar Left:   Logo + "Admin" badge (red, pulsing dot for alerts)
+TopBar Center: Global search (users, transactions, API keys)
+TopBar Right:  Alert bell (with count badge) + Admin avatar + "Founder" badge
+
+3. PAGE-BY-PAGE BREAKDOWN
+-----------------------------------------------------------------------------
+
+PAGE 1: DASHBOARD (/dashboard)
+  Purpose: Mission-critical overview — all key metrics at a glance
+  Layout: Full-width, dense grid
+  Components:
+    - MetricCards: Row of 6 stat cards
+      * Total Users (number + % change vs last week)
+      * Active Subscriptions (number + MRR)
+      * Revenue This Month (₹ + trend)
+      * API Calls Today (number + vs yesterday)
+      * Documents Generated Today (number)
+      * Referral Payouts Due (₹ amount)
+    - RevenueChart: Area chart — revenue over last 90 days
+      * Stacked by tier (Student Base, Creator Pro, Educator, Elite, etc.)
+    - UserGrowthChart: Line chart — new users per day (last 30 days)
+    - TopReferrers: Mini table — top 5 referrers this month
+      * Columns: Name, Invites, Earnings
+    - RecentSignups: List of last 10 registered users
+      * Avatar + name + email + plan + signup time
+    - ActiveAlerts: Banner list of critical alerts
+      * "3 users hit quota limit today"
+      * "API latency above 2s threshold"
+      * "Referral payout batch due tomorrow"
+  State Variables:
+    - metrics: object (all stat values)
+    - revenueChart: array
+    - userGrowth: array
+    - topReferrers: array
+    - recentSignups: array
+    - alerts: array
+
+PAGE 2: REAL-TIME MONITOR (/monitor)
+  Purpose: Live system monitoring — API calls, active users, errors
+  Layout: Full-width, live-updating
+  Components:
+    - LiveMetrics: Auto-refreshing stat cards (every 5s)
+      * Active Users Now (number)
+      * API Calls/min (number)
+      * Avg Response Time (ms)
+      * Error Rate (%)
+    - LiveFeed: Scrolling list of recent API calls
+      * Each: timestamp + endpoint + user + status + latency
+      * Color-coded: green (2xx), amber (4xx), red (5xx)
+    - ErrorLog: Recent errors with stack traces
+      * Expandable rows
+      * Filter by endpoint, error type, time
+    - WebSocketIndicator: Green dot when connected, red when disconnected
+  State Variables:
+    - liveMetrics: object (updates every 5s)
+    - liveFeed: array (scrolling, max 100 entries)
+    - errors: array
+    - wsConnected: boolean
+
+PAGE 3: ALL USERS (/users)
+  Purpose: User management — view, search, edit, disable
+  Layout: Full-width, data table
+  Components:
+    - UserTable: Sortable, filterable data table
+      * Columns: Avatar, Name, Email, Plan, Status, Referrals, Joined, Actions
+      * Search by name/email
+      * Filter by plan, status, date range
+      * Sort by any column
+      * Pagination (25 per page)
+    - UserDetailModal: Click user row to open
+      * Profile info (name, email, avatar)
+      * Subscription details (plan, renewal, payment history)
+      * Usage stats (quizzes, docs, API calls)
+      * Referral network (who they invited)
+      * Activity log (last 20 actions)
+      * Actions: Impersonate Login, Disable Account, Send Email
+    - BulkActions: Select multiple + Export CSV / Send Notification
+    - UserStats: Total users by plan (pie chart)
+  State Variables:
+    - users: array (paginated, filtered)
+    - selectedUser: object | null
+    - filters: { search, plan, status, dateRange }
+    - userStats: { byPlan, byStatus, total }
+
+PAGE 4: SUBSCRIPTIONS (/subscriptions)
+  Purpose: Subscription management — active, churned, upgrades
+  Layout: Full-width, table + charts
+  Components:
+    - SubscriptionStats: 4 cards
+      * Active Subscriptions (number)
+      * Monthly Recurring Revenue (₹)
+      * Churn Rate (%)
+      * Average Revenue Per User (₹)
+    - SubscriptionTable: All active subscriptions
+      * Columns: User, Plan, Status, Start Date, Renewal Date, Amount, Actions
+      * Filter by plan, status, date
+      * Actions: View, Cancel, Upgrade (manual)
+    - ChurnTable: Recently cancelled subscriptions
+      * Columns: User, Plan, Cancelled Date, Reason (if provided), Last Active
+    - UpgradeFlow: Track manual upgrades
+      * Pending upgrades list
+      * Process upgrade button
+  State Variables:
+    - subscriptions: array
+    - churned: array
+    - stats: object
+
+PAGE 5: REFERRALS (/referrals)
+  Purpose: Referral engine monitoring — payouts, top performers
+  Layout: Full-width, tables + charts
+  Components:
+    - ReferralStats: 4 cards
+      * Total Referrals (all time)
+      * Pending Payouts (₹)
+      * Paid This Month (₹)
+      * Average Referrals Per User
+    - ReferralTable: All referral relationships
+      * Columns: Referrer, Referred User, Plan, Monthly Earning, Status, Since
+    - PayoutTable: Payout history
+      * Columns: Date, Recipient, Amount, UPI ID, Status, Transaction ID
+    - TopPerformers: Leaderboard of referral champions
+      * Columns: Rank, Name, Total Referrals, Total Earnings, Current Tier
+    - PayoutBatch: "Run Payout Batch" button (processes all pending UPI payments)
+  State Variables:
+    - referrals: array
+    - payouts: array
+    - topPerformers: array
+    - pendingAmount: number
+
+PAGE 6: REVENUE DASHBOARD (/revenue)
+  Purpose: Deep revenue analytics — MRR, ARR, cohort analysis
+  Layout: Full-width, charts heavy
+  Components:
+    - RevenueCards: 4 large stat cards
+      * MRR (Monthly Recurring Revenue)
+      * ARR (Annual Recurring Revenue)
+      * Revenue Growth (% month-over-month)
+      * LTV (Lifetime Value per user)
+    - RevenueChart: Stacked area chart — MRR by tier over 12 months
+    - CohortChart: Retention cohort table
+      * Rows: signup month, Columns: months since signup, Cells: % retained
+    - RevenueByPortal: Bar chart — revenue per portal
+    - TransactionVolume: Line chart — transactions per day
+  State Variables:
+    - revenue: object
+    - mrrHistory: array
+    - cohortData: array
+
+PAGE 7: TRANSACTIONS (/transactions)
+  Purpose: All payment transactions — successful, failed, refunded
+  Layout: Full-width, data table
+  Components:
+    - TransactionTable: Complete transaction log
+      * Columns: ID, User, Plan, Amount, Method, Status, Date, Razorpay ID
+      * Status badges: Success (green), Failed (red), Refunded (amber)
+      * Filter by status, plan, date range, amount range
+      * Search by user name/email
+    - TransactionDetail: Expandable row
+      * Razorpay payment details
+      * Subscription linkage
+      * Refund reason (if applicable)
+    - ExportButton: Download CSV/Excel
+  State Variables:
+    - transactions: array (paginated)
+    - filters: object
+
+PAGE 8: AI LESSONS (/content/lessons)
+  Purpose: Manage AI lesson content — add, edit, publish
+  Layout: Full-width, table + editor
+  Components:
+    - LessonsTable: All lessons
+      * Columns: Title, Category, Duration, XP, Status, Completions, Rating
+      * Status: Published (green), Draft (amber), Archived (gray)
+    - LessonEditor: Create/edit lesson form
+      * Title input
+      * Category selector
+      * Duration input
+      * XP reward input
+      * Content editor (Markdown with preview)
+      * Quiz editor (add MCQ questions)
+      * Publish/Save Draft buttons
+    - LessonStats: Per-lesson analytics
+      * Views, completions, avg score, avg time spent
+  State Variables:
+    - lessons: array
+    - editingLesson: object | null
+    - lessonStats: object
+
+PAGE 9: QUIZ ARENA (/content/quizzes)
+  Purpose: Manage quiz content, question banks, categories
+  Layout: Full-width, tables
+  Components:
+    - QuestionBank: All questions
+      * Columns: Question, Subject, Difficulty, Options, Correct Answer, Used In
+      * Add question form
+      * Import questions (CSV/JSON)
+    - QuizTemplates: Pre-built quiz configurations
+      * Columns: Name, Subject, Difficulty, Question Count, Times Used
+    - QuizAnalytics: Quiz performance metrics
+      * Avg score by subject, difficulty distribution, completion rate
+  State Variables:
+    - questions: array
+    - templates: array
+    - analytics: object
+
+PAGE 10: EXAM VAULT (/content/exams)
+  Purpose: Manage exam-specific content (ADRE, APSC, etc.)
+  Layout: Full-width, grouped by exam
+  Components:
+    - ExamGroup: Collapsible sections per exam
+      * Each: exam name + question count + last updated
+    - QuestionEditor: Add/edit questions per exam
+    - CutoffTracker: Track and update cutoff scores per year
+    - BookRecommendations: Manage recommended books per exam
+  State Variables:
+    - exams: array
+    - cutoffs: object
+
+PAGE 11: API ANALYTICS (/api-analytics)
+  Purpose: API usage deep-dive — by user, by endpoint, by model
+  Layout: Full-width, charts + tables
+  Components:
+    - ApiStats: 4 cards
+      * Total API Calls (period)
+      * Total Tokens Used
+      * Total Cost (OpenRouter)
+      * Profit Margin (%)
+    - CallsByUser: Table — top API consumers
+      * Columns: User, Plan, Calls, Tokens, Cost, Trend
+    - CallsByEndpoint: Bar chart — usage per endpoint
+    - CallsByModel: Pie chart — which LLM models are used most
+    - LatencyDistribution: Histogram of response times
+    - ErrorBreakdown: Table of error types and counts
+  State Variables:
+    - apiStats: object
+    - callsByUser: array
+    - callsByEndpoint: array
+    - callsByModel: array
+
+PAGE 12: SYSTEM HEALTH (/system)
+  Purpose: Infrastructure monitoring — uptime, performance, alerts
+  Layout: Full-width, status boards
+  Components:
+    - ServiceStatus: Grid of service cards
+      * Services: API Gateway, Supabase, Cloudflare Workers, R2 Storage, OpenRouter
+      * Each: green/amber/red dot + name + uptime % + last check
+    - UptimeChart: 90-day uptime per service (block grid)
+    - PerformanceMetrics: Response time percentiles (p50, p95, p99)
+    - ActiveAlerts: Current system alerts
+      * Acknowledge/resolve buttons
+    - AlertRules: Configure alert thresholds
+      * "Alert when error rate > 5%"
+      * "Alert when latency > 3s"
+      * Notification channels: Email, WhatsApp
+  State Variables:
+    - services: array
+    - uptime: object
+    - performance: object
+    - alerts: array
+    - alertRules: array
+
+PAGE 13: LOGS (/logs)
+  Purpose: System logs — API requests, errors, audit trail
+  Layout: Full-width, terminal-style
+  Components:
+    - LogViewer: Terminal-style scrolling log output
+      * Timestamp + level (INFO/WARN/ERROR) + message
+      * Color-coded by level
+      * Auto-scroll with pause button
+    - LogFilter: Filter by level, endpoint, user, time range
+    - AuditTrail: Admin action log
+      * "Admin disabled user X"
+      * "Admin updated lesson Y"
+      * "Admin ran payout batch"
+  State Variables:
+    - logs: array
+    - filter: object
+    - autoScroll: boolean
+
+PAGE 14: SETTINGS (/settings)
+  Purpose: System configuration — alerts, integrations, API keys
+  Layout: 2-column
+  Components:
+    - GeneralSettings: Platform name, logo, maintenance mode toggle
+    - AlertSettings: Email/WhatsApp notification configuration
+    - IntegrationSettings: OpenRouter API key, Razorpay keys, Supabase config
+    - SecuritySettings: 2FA, session management, IP whitelist
+    - DangerZone: Reset database, purge logs, export all data
+  State Variables:
+    - settings: object
+
+4. COMPONENT ARCHITECTURE
+-----------------------------------------------------------------------------
+
+Atomic Components:
+  Button:        Variants: primary (cyan), secondary, ghost, danger, success
+  Input:         Variants: text, search, number, date-range, select
+  Badge:         Variants: success (green), warning (amber), danger (red), info (cyan)
+  Card:          Variants: stat, metric, alert, service
+  Modal:         Overlay dialog (confirm actions, user detail)
+  Toast:         Slide-in notification
+  Table:         Sortable, filterable, paginated data table
+  Chart:         Recharts wrapper (line, bar, area, pie)
+  Toggle:        On/off switch for settings
+  AlertBanner:   Full-width alert with action buttons
+
+Composite Components:
+  MetricCard:    Big number + label + sparkline + trend indicator
+  DataTable:     Full-featured table with sort/filter/paginate
+  ChartGrid:     Responsive grid of charts
+  LogViewer:     Terminal-style scrolling log display
+  UserDetail:    Tabbed modal with user info + actions
+  CohortTable:   Retention cohort heatmap
+
+Layout Components:
+  TopBar:        Fixed header with search + alerts
+  Sidebar:       Fixed left sidebar (240px) with nav zones
+  ContentArea:   Scrollable main content
+  StatusBar:     Fixed bottom bar (system status, connection indicator)
+
+5. DATA MODEL
+-----------------------------------------------------------------------------
+
+All Supabase Tables (cross-portal read access):
+
+  auth.users          (Supabase Auth — user accounts)
+  user_stats          (XP, streaks, quiz history)
+  projects            (code portal projects)
+  deployments         (code portal deployments)
+  documents           (educator portal generated docs)
+  api_keys            (API portal keys)
+  api_usage           (API portal usage logs)
+  subscriptions       (all portal subscriptions)
+  transactions        (Razorpay payments)
+  referral_relationships (who invited whom)
+  referral_payouts    (payout history)
+  quiz_history        (arena portal quiz results)
+  lesson_progress     (arena portal lesson completion)
+  achievements        (arena portal badges)
+  streaks             (arena portal daily streaks)
+  webhooks            (API portal webhook configs)
+  webhook_deliveries  (API portal webhook logs)
+  ai_lessons          (lesson content)
+  quiz_questions      (quiz question bank)
+  exam_data           (exam vault content)
+
+Admin-Specific Tables:
+  admin_audit_log:
+    - id: uuid
+    - admin_id: uuid
+    - action: text
+    - target_type: text ('user' | 'lesson' | 'settings' | etc.)
+    - target_id: text
+    - details: jsonb
+    - created_at: timestamp
+
+  system_alerts:
+    - id: uuid
+    - type: text ('error' | 'warning' | 'info')
+    - title: text
+    - message: text
+    - service: text
+    - resolved: boolean
+    - resolved_at: timestamp
+    - created_at: timestamp
+
+  alert_rules:
+    - id: uuid
+    - metric: text ('error_rate' | 'latency' | 'usage')
+    - threshold: numeric
+    - operator: text ('>' | '<' | '==')
+    - notification_channel: text ('email' | 'whatsapp')
+    - is_active: boolean
+    - created_at: timestamp
+
+6. API ENDPOINTS (Admin-Only)
+-----------------------------------------------------------------------------
+
+GET    /api/admin/metrics         Get all dashboard metrics
+GET    /api/admin/metrics/realtime  Get real-time metrics (5s refresh)
+
+GET    /api/admin/users           List all users (paginated, filtered)
+GET    /api/admin/users/:id       Get user detail
+PUT    /api/admin/users/:id       Update user (disable, change plan)
+POST   /api/admin/users/:id/impersonate  Generate impersonation token
+POST   /api/admin/users/:id/email Send email to user
+
+GET    /api/admin/subscriptions   List all subscriptions
+PUT    /api/admin/subscriptions/:id  Cancel/upgrade subscription
+
+GET    /api/admin/referrals       List all referral relationships
+GET    /api/admin/referrals/payouts  List payout history
+POST   /api/admin/referrals/payouts/run  Process payout batch
+
+GET    /api/admin/revenue         Get revenue analytics
+GET    /api/admin/revenue/cohorts Get cohort retention data
+GET    /api/admin/transactions    List all transactions
+
+GET    /api/admin/content/lessons List all lessons
+POST   /api/admin/content/lessons Create lesson
+PUT    /api/admin/content/lessons/:id  Update lesson
+DELETE /api/admin/content/lessons/:id  Delete lesson
+
+GET    /api/admin/content/questions  List all questions
+POST   /api/admin/content/questions  Create question
+PUT    /api/admin/content/questions/:id  Update question
+DELETE /api/admin/content/questions/:id  Delete question
+
+GET    /api/admin/api-analytics   Get API usage analytics
+GET    /api/admin/api-analytics/users  Get per-user API usage
+
+GET    /api/admin/system/health   Get service health status
+GET    /api/admin/system/uptime   Get 90-day uptime data
+GET    /api/admin/system/alerts   Get active alerts
+POST   /api/admin/system/alerts/:id/resolve  Resolve alert
+
+GET    /api/admin/logs            Get system logs (paginated, filtered)
+GET    /api/admin/audit-log       Get admin action audit trail
+
+PUT    /api/admin/settings        Update platform settings
+GET    /api/admin/settings        Get platform settings
+
+Security:
+  - All admin endpoints require Supabase auth
+  - RLS policy: only founder email (piyushbhuyan001@gmail.com) can access
+  - All actions logged to admin_audit_log
+  - Rate limited: 100 requests/minute per admin session
+
+7. INTERACTIONS & ANIMATIONS
+-----------------------------------------------------------------------------
+
+Page Transitions:
+  - Any page: Instant (no animation — speed over style for admin)
+
+Component Interactions:
+  - Metric cards: Numbers animate up from 0 on page load (0.5s)
+  - Live feed: New entries slide in from top (0.2s)
+  - Alert dismiss: Fade out (0.2s)
+  - User disable: Confirmation modal -> red flash -> status update
+  - Payout batch: Progress bar -> success toast
+  - Log auto-scroll: Smooth scroll to bottom
+
+CSS Keyframes:
+  @keyframes live-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+  @keyframes alert-slide {
+    0% { transform: translateY(-100%); opacity: 0; }
+    100% { transform: translateY(0); opacity: 1; }
+  }
+
+Loading States:
+  - Dashboard: Skeleton metric cards + chart placeholders
+  - User table: Skeleton rows
+  - Logs: Spinner with "Connecting to log stream..."
+
+Empty States:
+  - No alerts: "All systems healthy."
+  - No users: "No users yet."
+  - No transactions: "No transactions recorded."
+
+8. RESPONSIVE DESIGN
+-----------------------------------------------------------------------------
+
+Desktop (1200px+):
+  - Full sidebar (240px) + content
+  - Metric cards: 6 per row
+  - Data tables: all columns visible
+  - Charts: side by side
+
+Tablet (768px-1199px):
+  - Sidebar collapsed to icons (64px)
+  - Metric cards: 3 per row
+  - Data tables: horizontal scroll for overflow columns
+
+Mobile (< 768px):
+  - Sidebar: Hidden (bottom tab bar)
+  - Metric cards: 2 per row
+  - Data tables: Card view instead of table
+  - Charts: Full width, stacked vertically
+  - Not recommended for admin use — desktop-first design
+
+Breakpoint Rules:
+  @media (max-width: 768px) {
+    .sidebar { display: none; } /* Bottom nav for emergency mobile access */
+    .metric-grid { grid-template-columns: 1fr 1fr; }
+    .chart-grid { grid-template-columns: 1fr; }
+    .data-table { font-size: 12px; }
+  }
+
+NOTE: Admin panel is designed primarily for desktop use. Mobile access 
+is available for critical monitoring only (dashboard + alerts).
+
+9. TECH STACK
+-----------------------------------------------------------------------------
+
+Framework:        React (Vite build)
+Router:           React Router v6
+State Management: React useState + polling (5s intervals for live data)
+Styling:          Tailwind CSS + CSS custom properties
+Animations:       Minimal — Framer Motion only for metric counters
+Charts:           Recharts (revenue, usage, performance charts)
+Database:         Supabase PostgreSQL (read access to all portal tables)
+Auth:             Supabase Auth (founder email only via RLS)
+Real-Time:        Supabase Realtime (for live feed) + polling fallback
+Billing:          Razorpay API (for transaction details)
+Key Libraries:
+  - recharts            Charts
+  - lucide-react        Icons
+  - framer-motion       Metric counter animations
+  - @supabase/supabase-js  Database + Auth + Realtime
+  - date-fns            Date formatting
+  - react-hot-toast     Toast notifications
+=============================================================================

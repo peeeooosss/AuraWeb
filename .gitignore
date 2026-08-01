@@ -1,0 +1,38 @@
+# Environment variables
+.env
+.env.local
+.env.*.local
+.env.production
+
+# Secrets
+rzp-key.csv
+
+# Supabase CLI temp files
+supabase/.temp/
+
+# Wrangler temp files
+.wrangler/
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Python
+server/venv/
+__pycache__/
+*.pyc
+pip_install.log
+
+# IDE
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*

@@ -1,0 +1,61 @@
+<svg viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="gradLeft" x1="15%" y1="0%" x2="85%" y2="100%">
+      <stop offset="0%" stop-color="#22D3EE"/>
+      <stop offset="100%" stop-color="#7C3AED"/>
+    </linearGradient>
+    <linearGradient id="gradRight" x1="85%" y1="0%" x2="15%" y2="100%">
+      <stop offset="0%" stop-color="#06B6D4"/>
+      <stop offset="100%" stop-color="#A855F7"/>
+    </linearGradient>
+    <linearGradient id="gradBar" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#67E8F9"/>
+      <stop offset="100%" stop-color="#8B5CF6"/>
+    </linearGradient>
+    <linearGradient id="sheenGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.75"/>
+      <stop offset="55%" stop-color="#FFFFFF" stop-opacity="0.06"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+
+    <filter id="dropShadow" x="-60%" y="-60%" width="220%" height="220%">
+      <feDropShadow dx="0" dy="7" stdDeviation="8" flood-color="#000000" flood-opacity="0.55"/>
+    </filter>
+
+    <filter id="outerGlow" x="-120%" y="-120%" width="340%" height="340%">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <filter id="innerGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feFlood flood-color="#A5F3FC" flood-opacity="0.95" result="glowColor"/>
+      <feComposite in="glowColor" in2="SourceAlpha" operator="in" result="coloredMask"/>
+      <feMorphology in="SourceAlpha" operator="erode" radius="4" result="eroded"/>
+      <feGaussianBlur in="eroded" stdDeviation="4" result="softEroded"/>
+      <feComposite in="coloredMask" in2="softEroded" operator="out" result="innerRim"/>
+      <feMerge>
+        <feMergeNode in="SourceGraphic"/>
+        <feMergeNode in="innerRim"/>
+      </feMerge>
+    </filter>
+
+    <filter id="glassBlur" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="3.2"/>
+    </filter>
+  </defs>
+
+  <g filter="url(#dropShadow)">
+    <g filter="url(#outerGlow)">
+      <path d="M124,28 L30,212 L76,212 L114,110 Z" fill="url(#gradLeft)" filter="url(#innerGlow)"/>
+      <path d="M124,28 L218,212 L172,212 L134,110 Z" fill="url(#gradRight)" filter="url(#innerGlow)"/>
+      <path d="M90,150 L166,128 L156,166 L80,188 Z" fill="url(#gradBar)" filter="url(#innerGlow)"/>
+    </g>
+  </g>
+
+  <path d="M124,28 L90,150 L114,110 Z" fill="url(#sheenGrad)" opacity="0.55" filter="url(#glassBlur)"/>
+  <path d="M90,150 L166,128 L130,140 Z" fill="url(#sheenGrad)" opacity="0.4" filter="url(#glassBlur)"/>
+</svg>

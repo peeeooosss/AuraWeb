@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Aura AI — Enterprise AI Ecosystem</title>
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg viewBox='0 0 240 240' xmlns='http://www.w3.org/2000/svg'><defs><linearGradient id='a' x1='15%25' y1='0%25' x2='85%25' y2='100%25'><stop offset='0%25' stop-color='%232FF3E0'/><stop offset='100%25' stop-color='%236B21D8'/></linearGradient></defs><path d='M124,28 L30,212 L76,212 L114,110 Z' fill='url(%23a)'/><path d='M124,28 L218,212 L172,212 L134,110 Z' fill='%23B14EFF'/></svg>" />
+    <script>
+      // Dynamic title based on subdomain
+      (function() {
+        var host = window.location.hostname;
+        if (host.includes('tablely') || host.includes('resto')) {
+          document.title = 'Tablely — QR Digital Menus & WhatsApp POS';
+        } else if (host.includes('arena')) {
+          document.title = 'AuraAI — Gamified Learning Portal';
+        } else if (host.includes('career')) {
+          document.title = 'Aura Career — Resume Builder & Job Copilot';
+        } else if (host.includes('coach')) {
+          document.title = 'Aura Coach — WhatsApp Automation';
+        } else if (host.includes('workspace')) {
+          document.title = 'Aura Workspace — Presentation Studio';
+        }
+      })();
+    </script>
+    <script>
+      // Micro-polyfills for older Safari versions (14–15.3) so forms work everywhere.
+      if (!Object.hasOwn) {
+        Object.hasOwn = function(o, k) { return Object.prototype.hasOwnProperty.call(o, k); };
+      }
+      if (typeof window.structuredClone !== 'function') {
+        window.structuredClone = function(v) { return v === undefined ? undefined : JSON.parse(JSON.stringify(v)); };
+      }
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script>
+      // Self-healing guards for stale Cloudflare/browser module/CSS caches.
+      (function () {
+        function q(u, k) { return u.split('?')[0] + '?' + k + '=' + Date.now(); }
+        function boot() {
+          var root = document.getElementById('root');
+          if (!root || root.childElementCount > 0) {
+            try { sessionStorage.removeItem('__bootReload'); } catch (e) {}
+            return;
+          }
+
+          var entry = document.querySelector('script[type="module"][src*="/assets/"]');
+          if (entry && entry.src) {
+            var s = document.createElement('script');
+            s.type = 'module';
+            s.src = q(entry.src, 'boot');
+            document.head.appendChild(s);
+          }
+
+          setTimeout(function () {
+            if (root.childElementCount === 0) {
+              try {
+                if (!sessionStorage.getItem('__bootReload')) {
+                  sessionStorage.setItem('__bootReload', '1');
+                  location.reload();
+                }
+              } catch (e) {}
+            }
+          }, 4000);
+        }
+
+        window.addEventListener('load', function () {
+          setTimeout(function () {
+            try {
+              // CSS guard: if any /assets/ stylesheet failed to parse (e.g. cached as HTML),
+              // re-inject it with a query-busting URL.
+              var cssOk = false;
+              var sheets = document.styleSheets;
+              for (var i = 0; i < sheets.length; i++) {
+                var sh = sheets[i];
+                if (sh.href && sh.href.indexOf('/assets/') !== -1) {
+                  try {
+                    if (sh.cssRules && sh.cssRules.length > 0) { cssOk = true; break; }
+                  } catch (e) {
+                    cssOk = true;
+                    break;
+                  }
+                }
+              }
+              if (!cssOk) {
+                var links = document.querySelectorAll('link[rel="stylesheet"][href*="/assets/"]');
+                for (var j = 0; j < links.length; j++) {
+                  var l = links[j];
+                  var n = document.createElement('link');
+                  n.rel = 'stylesheet';
+                  n.href = q(l.href, 'r');
+                  l.parentNode.insertBefore(n, l.nextSibling);
+                }
+              }
+
+              // JS guard: if React never mounted, re-boot the entry module.
+              boot();
+            } catch (e) {
+              // Never break the page if the guard itself fails.
+            }
+          }, 4000);
+        });
+      })();
+    </script>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
