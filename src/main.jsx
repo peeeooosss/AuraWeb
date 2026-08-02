@@ -6,17 +6,19 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 import './tablely/index.css';
 import './arena/arenaStyles.css';
 
-const Arena = lazy(() => import('./arena/index'));
 const TablelyApp = lazy(() => import('./tablely/App'));
+const TryAuraAIApp = lazy(() => import('./tryauraai/App'));
+const ArenaApp = lazy(() => import('./arena/App'));
 const DirectoryHome = lazy(() => import('./pages/DirectoryHome'));
 
 function detectSubdomain() {
   const host = window.location.hostname;
+  const isSubdomain = host.split('.').length > 2;
   if (host.includes('tablely') || host.includes('resto')) return 'tablely';
-  if (host.includes('arena')) return 'arena';
+  if (host.startsWith('arena.')) return 'arena';
+  if (isSubdomain && (host.includes('tryauraai') || host.includes('workspace'))) return 'tryauraai';
   if (host.includes('career')) return 'career';
   if (host.includes('coach')) return 'coach';
-  if (host.includes('workspace')) return 'workspace';
   return 'main';
 }
 
@@ -44,7 +46,13 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             </div>
           </BrowserRouter>
         ) : subdomain === 'arena' ? (
-          <Arena />
+          <BrowserRouter>
+            <ArenaApp />
+          </BrowserRouter>
+        ) : subdomain === 'tryauraai' ? (
+          <BrowserRouter>
+            <TryAuraAIApp />
+          </BrowserRouter>
         ) : (
           <DirectoryHome />
         )}

@@ -1,0 +1,376 @@
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useSearchParams, Link } from 'react-router-dom';
+import {
+  Download, FileText, Loader, AlertCircle, ChevronLeft, ChevronRight,
+  Play, X, Sparkles,
+} from 'lucide-react';
+import SlideRenderer from '../components/SlideRenderer';
+import { exportSlides, triggerDownload } from '../lib/exportClient.jsx';
+import { authFetch } from '../lib/api';
+import { getAccessToken } from '../lib/auth';
+
+function FullscreenPresenter({ slides, currentIndex, onClose }) {
+  const [idx, setIdx] = useState(currentIndex);
+  const slide = slides[idx];
+
+  const goNext = useCallback(() => { if (idx < slides.length - 1) setIdx(idx + 1); }, [idx, slides.length]);
+  const goPrev = useCallback(() => { if (idx > 0) setIdx(idx - 1); }, [idx]);
+
+  useEffect(() => {
+    function handleKey(e) {
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') goNext();
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') goPrev();
+      if (e.key === 'Escape') onClose();
+    }
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [goNext, goPrev, onClose]);
+
+  if (!slide) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black flex flex-col">
+      <div className="flex items-center justify-between px-6 py-3 bg-black/50 backdrop-blur">
+        <span className="text-xs text-gray-400">
+          Slide {idx + 1} of {slides.length}
+        </span>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-gray-500">
+            ← → arrow keys &nbsp;|&nbsp; Esc to exit
+          </span>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10 text-gray-400">
+            <X size={18} />
+          </button>
+        </div>
+      </div>
+
+      <div className="flex-1 flex items-center justify-center p-8">
+        <div className="w-full max-w-5xl">
+          <SlideRenderer slide={slide} index={idx} total={slides.length} />
+        </div>
+      </div>
+
+      <div className="flex items-center justify-center gap-4 py-4 px-6 bg-black/50 backdrop-blur">
+        <button
+          onClick={goPrev}
+          disabled={idx === 0}
+          className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white disabled:opacity-30 transition-colors"
+        >
+          <ChevronLeft size={20} />
+        </button>
+        <div className="flex gap-1.5">
+          {slides.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => setIdx(i)}
+              className={`w-2 h-2 rounded-full transition-colors ${
+                i === idx ? 'bg-purple-500' : 'bg-white/20 hover:bg-white/40'
+              }`}
+            />
+          ))}
+        </div>
+        <button
+          onClick={goNext}
+          disabled={idx === slides.length - 1}
+          className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white disabled:opacity-30 transition-colors"
+        >
+          <ChevronRight size={20} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function StreamingSkeleton() {
+  return (
+    <div className="w-full aspect-[16/9] rounded-xl bg-gray-100 animate-pulse flex items-center justify-center">
+      <Loader size={32} className="text-purple-300 animate-spin" />
+    </div>
+  );
+}
+
+function ThumbnailSkeleton() {
+  return (
+    <div className="w-full rounded-xl overflow-hidden border-2 border-transparent">
+      <div style={{ aspectRatio: '16/9' }} className="bg-gray-100 animate-pulse flex items-center justify-center">
+        <Loader size={14} className="text-purple-300 animate-spin" />
+      </div>
+    </div>
+  );
+}
+
+export default function PresentationPage() {
+  const [searchParams] = useSearchParams();
+  const id = searchParams.get('id');
+  const shouldStream = searchParams.get('stream') === 'true';
+
+  const [presentation, setPresentation] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [fullscreen, setFullscreen] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [streamStatus, setStreamStatus] = useState('');
+  const [streaming, setStreaming] = useState(false);
+
+  const completedRef = useRef(false);
+  const totalSlidesRef = useRef(0);
+  const autoAdvanceRef = useRef(true);
+
+  useEffect(() => {
+    if (!id) { setError('No presentation ID'); setLoading(false); return; }
+    completedRef.current = false;
+
+    if (!shouldStream) {
+      authFetch(`/api/v1/ppt/presentation/${id}`)
+        .then(r => r.ok ? r.json() : Promise.reject(r.statusText))
+        .then(data => { setPresentation(data); setLoading(false); })
+        .catch(() => { setError('Failed to load presentation'); setLoading(false); });
+      return;
+    }
+
+    setStreamStatus('Connecting...');
+    setStreaming(true);
+    setLoading(false);
+    let es = null;
+    let cancelled = false;
+    (async () => {
+      const token = await getAccessToken();
+      if (cancelled) return;
+      const streamUrl = token
+        ? `/api/v1/ppt/presentation/stream/${id}?token=${encodeURIComponent(token)}`
+        : `/api/v1/ppt/presentation/stream/${id}`;
+      es = new EventSource(streamUrl);
+
+    es.addEventListener('response', (event) => {
+      if (completedRef.current) return;
+      try {
+        const d = JSON.parse(event.data);
+        if (d.type === 'status') {
+          setStreamStatus(d.status);
+        } else if (d.type === 'chunk') {
+          const slide = d.chunk;
+          if (slide && typeof slide.index === 'number') {
+            setPresentation(prev => {
+              const slides = [...(prev?.slides || [])];
+              while (slides.length <= slide.index) slides.push(null);
+              slides[slide.index] = slide;
+              return {
+                id: prev?.id || id,
+                title: prev?.title || '',
+                slides: slides.filter(Boolean),
+              };
+            });
+            setStreamStatus(`Slide ${slide.index + 1} of ${totalSlidesRef.current || '?'} ready`);
+            if (autoAdvanceRef.current) {
+              setCurrentSlide(slide.index);
+            }
+          }
+        } else if (d.type === 'complete') {
+          if (d.presentation) {
+            completedRef.current = true;
+            totalSlidesRef.current = d.presentation.slides?.length || 0;
+            setPresentation(d.presentation);
+            setStreaming(false);
+            setStreamStatus('');
+            es.close();
+          }
+        } else if (d.type === 'error') {
+          completedRef.current = true;
+          setError(d.detail || 'Stream error');
+          setStreaming(false);
+          es.close();
+        }
+      } catch {}
+    });
+
+    es.onerror = () => {
+      if (!completedRef.current && es.readyState === EventSource.CLOSED) {
+        setStreaming(false);
+        setError('Stream ended without completing');
+      }
+    };
+    })();
+
+    return () => { cancelled = true; completedRef.current = true; es?.close(); };
+  }, [id, shouldStream]);
+
+  useEffect(() => {
+    setCurrentSlide(0);
+  }, [presentation?.id]);
+
+  const handleDownload = useCallback(async (format) => {
+    if (!id || !presentation?.slides?.length) return;
+    setExporting(true);
+    try {
+      const blob = await exportSlides({
+        slides: presentation.slides,
+        format,
+        onProgress: (current, total) => setStreamStatus(`Rendering slide ${current + 1} of ${total}...`),
+      });
+      triggerDownload(blob, `presentation.${format}`);
+    } catch (e) {
+      setStreamStatus('');
+      console.error('Export failed:', e);
+    } finally {
+      setStreamStatus('');
+      setExporting(false);
+    }
+  }, [id, presentation]);
+
+  if (error) {
+    return (
+      <div className="max-w-3xl mx-auto px-6 py-20 flex flex-col items-center gap-4">
+        <AlertCircle size={32} className="text-red-400" />
+        <p className="text-sm text-red-600">{error}</p>
+        <div className="flex items-center gap-3">
+          <Link to="/dashboard" className="text-sm text-purple-500 hover:underline">Back to Dashboard</Link>
+          <button onClick={() => window.location.reload()} className="text-sm text-[#7A5AF8] hover:underline">Retry</button>
+        </div>
+      </div>
+    );
+  }
+
+  const slides = presentation?.slides || [];
+  const totalExpected = totalSlidesRef.current || (shouldStream ? (presentation?.n_slides || 0) : 0);
+  const cleanTitle = (presentation?.title || 'Untitled').replace(/^[,\s]+/, '').substring(0, 60);
+  const currentSlideData = slides[currentSlide];
+
+  return (
+    <div className="h-[calc(100vh-64px)] flex flex-col">
+      {fullscreen && currentSlideData && (
+        <FullscreenPresenter
+          slides={slides}
+          currentIndex={currentSlide}
+          onClose={() => setFullscreen(false)}
+        />
+      )}
+
+      {/* Streaming status bar */}
+      {streaming && streamStatus && (
+        <div className="shrink-0 border-b border-purple-100 bg-purple-50/80 backdrop-blur-sm">
+          <div className="flex items-center gap-3 px-6 py-2">
+            <Loader size={14} className="text-purple-500 animate-spin shrink-0" />
+            <span className="text-xs text-purple-700 font-medium truncate">{streamStatus}</span>
+            <div className="flex-1 h-1 rounded-full bg-purple-100 overflow-hidden ml-2">
+              <div className="h-full rounded-full bg-gradient-to-r from-purple-400 to-purple-600 animate-pulse" style={{ width: totalExpected ? `${(slides.length / totalExpected) * 100}%` : '30%' }} />
+            </div>
+            <span className="text-xs text-purple-500 tabular-nums shrink-0">
+              {slides.length}/{totalExpected || '?'}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Toolbar */}
+      <div className="flex items-center justify-between px-6 py-3 border-b border-[var(--p-border)] shrink-0">
+        <div className="flex items-center gap-3 min-w-0">
+          <Link to="/dashboard" className="text-sm text-[var(--p-text-muted)] hover:text-purple-600 truncate max-w-[200px]">
+            {cleanTitle}
+          </Link>
+          <span className="text-xs text-[var(--p-text-muted)] bg-gray-100 rounded-full px-2 py-0.5">
+            {slides.length} slides
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Link
+            to={`/outline?id=${id}`}
+            className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium text-[var(--p-text-secondary)] border border-[var(--p-border)] hover:bg-gray-50"
+          >
+            <FileText size={12} /> Edit Outline
+          </Link>
+          <Link
+            to={`/editor?id=${id}`}
+            className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium text-purple-600 border border-purple-200 bg-purple-50 hover:bg-purple-100"
+          >
+            <Sparkles size={12} /> Edit Slides
+          </Link>
+          <button
+            onClick={() => setFullscreen(true)}
+            className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium text-[var(--p-text-secondary)] border border-[var(--p-border)] hover:bg-gray-50"
+          >
+            <Play size={12} /> Present
+          </button>
+          <button
+            onClick={() => handleDownload('pdf')}
+            disabled={exporting}
+            className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium text-[var(--p-text-secondary)] border border-[var(--p-border)] hover:bg-gray-50 disabled:opacity-50"
+          >
+            <Download size={12} /> PDF
+          </button>
+          <button
+            onClick={() => handleDownload('pptx')}
+            disabled={exporting}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-gradient-to-r from-cyan-500 to-purple-600 text-white text-xs font-semibold hover:opacity-90 disabled:opacity-50 shadow-lg shadow-purple-500/20"
+          >
+            {exporting ? <Loader size={12} className="animate-spin" /> : <Download size={12} />}
+            PPTX
+          </button>
+        </div>
+      </div>
+
+      {/* Main: Slide canvas + thumbnails */}
+      <div className="flex-1 flex min-h-0">
+        {/* Slide viewport */}
+        <div className="flex-1 flex flex-col items-center justify-center p-6 bg-[var(--p-bg-section)] min-w-0">
+          <div className="w-full max-w-4xl">
+            {currentSlideData ? (
+              <SlideRenderer
+                slide={currentSlideData}
+                index={currentSlide}
+                total={slides.length}
+              />
+            ) : (
+              <StreamingSkeleton />
+            )}
+          </div>
+
+          {/* Nav buttons */}
+          <div className="flex items-center gap-4 mt-6">
+            <button
+              onClick={() => { autoAdvanceRef.current = false; setCurrentSlide(i => Math.max(0, i - 1)); }}
+              disabled={currentSlide === 0}
+              className="p-2 rounded-full border border-[var(--p-border)] bg-white hover:bg-gray-50 disabled:opacity-30 transition-colors"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <span className="text-xs text-[var(--p-text-muted)] tabular-nums min-w-[60px] text-center">
+              {currentSlide + 1} / {slides.length || 1}
+            </span>
+            <button
+              onClick={() => { autoAdvanceRef.current = false; setCurrentSlide(i => Math.min(slides.length - 1, i + 1)); }}
+              disabled={currentSlide >= slides.length - 1}
+              className="p-2 rounded-full border border-[var(--p-border)] bg-white hover:bg-gray-50 disabled:opacity-30 transition-colors"
+            >
+              <ChevronRight size={16} />
+            </button>
+          </div>
+        </div>
+
+        {/* Thumbnail strip */}
+        <div className="w-56 shrink-0 border-l border-[var(--p-border)] bg-[var(--p-bg-card)] overflow-y-auto p-3 space-y-2 p-scrollbar">
+          {slides.map((slide, i) => (
+            <button
+              key={slide?.id || i}
+              onClick={() => { autoAdvanceRef.current = false; setCurrentSlide(i); }}
+              className={`w-full text-left rounded-xl overflow-hidden border-2 transition-all ${
+                i === currentSlide
+                  ? 'border-purple-500 shadow-md shadow-purple-500/10'
+                  : 'border-transparent hover:border-gray-200'
+              }`}
+            >
+              <div style={{ aspectRatio: '16/9', fontSize: 6, lineHeight: 1.3 }}>
+                <SlideRenderer slide={slide} index={i} total={slides.length} compact />
+              </div>
+            </button>
+          ))}
+          {/* Skeleton placeholders for upcoming slides during streaming */}
+          {streaming && totalExpected > slides.length && Array.from({ length: Math.min(totalExpected - slides.length, 8) }, (_, i) => (
+            <ThumbnailSkeleton key={`skeleton-${i}`} />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
