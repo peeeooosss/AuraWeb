@@ -6,6 +6,7 @@ const navLinks = [
   { name: 'Voice AI Receptionist', href: '#voice' },
   { name: 'Custom Agency', href: '#agency' },
   { name: 'Aura Labs', href: '#labs' },
+  { name: 'Our Work', href: '#testimonials' },
 ];
 
 export default function Navbar() {

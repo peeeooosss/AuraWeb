@@ -11,6 +11,7 @@ const footerLinks = {
   Company: [
     { name: 'About Us', href: '#agency' },
     { name: 'AURA Labs', href: '#labs' },
+    { name: 'Our Work', href: '#testimonials' },
     { name: 'Careers', href: '#' },
     { name: 'Contact', href: '#contact' },
   ],

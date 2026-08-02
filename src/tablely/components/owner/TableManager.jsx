@@ -302,7 +302,7 @@ export default function TableManager({ initialTables, orders, restaurant, restau
   function renderModal() {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40">
-        <div className="w-full max-w-sm rounded-lg p-6 shadow-lg" style={{ background: 'var(--color-paper)' }}>
+        <div className="w-full max-w-sm rounded-lg bg-white p-6 shadow-lg">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-display text-lg font-semibold">{editing ? "Edit Table" : "Add Table"}</h3>
             <button onClick={() => setShowModal(false)} className="text-ink-soft hover:text-ink"><X size={18} /></button>

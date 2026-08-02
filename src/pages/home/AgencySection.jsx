@@ -64,12 +64,28 @@ export default function AgencySection() {
             <p className="text-lg text-zinc-400 mb-8 leading-relaxed">
               Can't find an off-the-shelf tool that fits your exact workflow? Our AI Automation Agency builds custom agentic workflows, WhatsApp bots, and secure data pipelines tailored specifically to your operations.
             </p>
-            <button className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-500 to-cyan-500 text-sm font-medium text-white rounded-xl hover:opacity-90 transition-opacity">
-              Got an Idea? Let's Build It.
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M5 12h14M12 5l7 7-7 7" />
-              </svg>
-            </button>
+            <div className="flex flex-wrap gap-4">
+              <a
+                href="https://wa.me/919864854481"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-500 to-cyan-500 text-sm font-medium text-white rounded-xl hover:opacity-90 transition-opacity"
+              >
+                Got an Idea? Let's Build It.
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M5 12h14M12 5l7 7-7 7" />
+                </svg>
+              </a>
+              <a
+                href="#testimonials"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-white/5 border border-white/10 text-sm font-medium text-white rounded-xl hover:bg-white/10 transition-colors"
+              >
+                View Our Work
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M7 17L17 7M17 7H7M17 7V17" />
+                </svg>
+              </a>
+            </div>
           </motion.div>
 
           {/* Right features */}

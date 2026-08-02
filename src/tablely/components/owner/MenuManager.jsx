@@ -294,7 +294,7 @@ export default function MenuManager({ initialMenu, restaurantId, onSaved }) {
       {/* Add Category Modal */}
       {showCatModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40">
-          <div className="w-full max-w-sm rounded-lg p-6 shadow-lg" style={{ background: 'var(--color-paper)' }}>
+          <div className="w-full max-w-sm rounded-lg bg-white p-6 shadow-lg">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-display text-lg font-semibold">Add Category</h3>
               <button onClick={() => setShowCatModal(false)} className="text-ink-soft hover:text-ink"><X size={18} /></button>
@@ -313,7 +313,7 @@ export default function MenuManager({ initialMenu, restaurantId, onSaved }) {
       {/* Add/Edit Item Modal */}
       {showItemModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 overflow-y-auto py-8">
-          <div className="w-full max-w-md rounded-lg p-6 shadow-lg mx-4" style={{ background: 'var(--color-paper)' }}>
+          <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-lg mx-4">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-display text-lg font-semibold">{editingItem ? "Edit Item" : "Add Item"}</h3>
               <button onClick={() => setShowItemModal(false)} className="text-ink-soft hover:text-ink"><X size={18} /></button>

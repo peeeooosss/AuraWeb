@@ -5,6 +5,7 @@ import VoiceProduct from './home/VoiceProduct';
 import SaaSCards from './home/SaaSCards';
 import AgencySection from './home/AgencySection';
 import LabsRoadmap from './home/LabsRoadmap';
+import Testimonials from './home/Testimonials';
 import Footer from './home/Footer';
 
 export default function DirectoryHome() {
@@ -16,6 +17,7 @@ export default function DirectoryHome() {
       <SaaSCards />
       <AgencySection />
       <LabsRoadmap />
+      <Testimonials />
       <Footer />
     </div>
   );
