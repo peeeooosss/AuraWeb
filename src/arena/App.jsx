@@ -13,6 +13,8 @@ const EditorPage = lazy(() => import('./pages/EditorPage'));
 const TemplatesPage = lazy(() => import('./pages/TemplatesPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
+const APIKeysPage = lazy(() => import('./pages/APIKeysPage'));
+const ModelsPage = lazy(() => import('./pages/ModelsPage'));
 const UpgradePage = lazy(() => import('./pages/Upgrade'));
 const LoginPage = lazy(() => import('./pages/Login'));
 
