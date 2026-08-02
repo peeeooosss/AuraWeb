@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Check, Crown, Sparkles, Zap, ChevronDown, ArrowLeft } from 'lucide-react';
+import { Check, Crown, Sparkles, Zap, ChevronDown, ArrowLeft, CreditCard } from 'lucide-react';
 import { toast } from 'sonner';
 import { getAccessToken } from '../lib/auth';
 
@@ -8,13 +8,15 @@ const PLANS = [
   {
     id: 'free',
     name: 'Free',
-    tagline: 'Start free — no card needed',
+    tagline: 'Start exploring — no card needed',
     price: 0,
     period: '',
+    credits: 50,
+    creditsPeriod: '50 credits (no rollover)',
     icon: <Zap size={20} />,
     iconClass: 'bg-zinc-100 text-zinc-500 border-zinc-200',
     features: [
-      '3 presentations / month',
+      '50 credits to start',
       'All core templates',
       'Basic outline generation',
       'PPTX download',
@@ -23,13 +25,16 @@ const PLANS = [
   {
     id: 'basic',
     name: 'Basic',
-    tagline: 'For serious students',
-    price: 199,
-    period: '/month',
-    icon: <Sparkles size={20} />,
+    tagline: 'For students & side-projects',
+    price: 149,
+    period: 'one-time',
+    credits: 300,
+    creditsPeriod: '300 credits (3-month rollover)',
+    icon: <CreditCard size={20} />,
     iconClass: 'bg-cyan-50 text-cyan-600 border-cyan-200',
     features: [
-      '20 presentations / month',
+      '300 credits',
+      'Credits roll over for 3 months',
       'All core templates',
       'Faster generation',
       'PPTX + PDF download',
@@ -38,14 +43,17 @@ const PLANS = [
   {
     id: 'growth',
     name: 'Growth',
-    tagline: 'For power creators',
-    price: 399,
-    period: '/month',
+    tagline: 'For creators and freelancers',
+    price: 299,
+    period: 'one-time',
+    credits: 900,
+    creditsPeriod: '900 credits (6-month rollover)',
     icon: <Sparkles size={20} />,
     iconClass: 'bg-[#F3F0FF] text-[#7A5AF8] border-[#DDD9F8]',
     popular: true,
     features: [
-      '100 presentations / month',
+      '900 credits',
+      'Credits roll over for 6 months',
       'All core templates',
       'Priority generation queue',
       'PPTX + PDF download',
@@ -54,13 +62,16 @@ const PLANS = [
   {
     id: 'pro',
     name: 'Pro',
-    tagline: 'Unlimited PPTs',
-    price: 999,
-    period: '/month',
+    tagline: 'For professional creators',
+    price: 799,
+    period: 'one-time',
+    credits: 3000,
+    creditsPeriod: '3000 credits (12-month rollover)',
     icon: <Crown size={20} />,
     iconClass: 'bg-amber-50 text-amber-600 border-amber-200',
     features: [
-      'Unlimited presentations',
+      '3000 credits',
+      'Credits roll over for 12 months',
       'All core templates',
       'Priority generation queue',
       'Early access features',
@@ -70,20 +81,24 @@ const PLANS = [
 
 const FAQ = [
   {
+    q: 'How are credits used?',
+    a: 'Each presentation costs 10-20 credits depending on complexity (slides, images, model used). Premium themes add a small bonus cost.',
+  },
+  {
+    q: 'Do credits expire?',
+    a: 'Free tier credits do not roll over. Paid plan credits roll over for 3, 6, or 12 months depending on your plan (Basic, Growth, or Pro), using FIFO expiration.',
+  },
+  {
     q: 'Can I switch plans later?',
-    a: 'Yes! You can upgrade or downgrade at any time. Your new plan takes effect immediately after payment.',
+    a: 'Yes! Purchase any plan at any time. Your new credits are added to your existing balance.',
   },
   {
     q: 'What payment methods are accepted?',
     a: 'We support UPI, credit/debit cards, net banking, and wallets through RazorPay — India\'s most trusted payment gateway.',
   },
   {
-    q: 'How long does a plan last?',
-    a: 'Each payment activates your plan for 30 days. Renew before it expires to keep your benefits.',
-  },
-  {
     q: 'Can I cancel anytime?',
-    a: 'Absolutely. Cancel anytime — you retain access until the end of your current period.',
+    a: 'These are one-time purchases, so there is nothing to cancel. Credits remain valid for the stated rollover period.',
   },
 ];
 
@@ -142,10 +157,6 @@ export default function Upgrade() {
   }, []);
 
   const handleSubscribe = async (plan) => {
-    if (plan.price === 0) {
-      toast.info('You are already on the Free plan');
-      return;
-    }
     setProcessing(plan.id);
     try {
       const token = await getAccessToken();
@@ -165,7 +176,7 @@ export default function Upgrade() {
         amount: orderData.amount,
         currency: orderData.currency || 'INR',
         name: 'Arena',
-        description: `${plan.name} plan — ₹${plan.price}/month`,
+        description: `${plan.name} plan — ${plan.credits} credits for ₹${plan.price}`,
         order_id: orderData.razorpay_order_id,
         prefill: { email: 'user@example.com' },
         handler: async (response) => {
@@ -183,7 +194,7 @@ export default function Upgrade() {
             const verifyData = await verifyRes.json();
             if (!verifyRes.ok) throw new Error(verifyData.detail || 'Payment verification failed');
             setCurrentPlan(plan.id);
-            toast.success(`${plan.name} plan activated!`);
+            toast.success(`${plan.name} plan activated! ${plan.credits} credits added.`);
           } catch (err) {
             toast.error(err.message);
           }
@@ -208,7 +219,7 @@ export default function Upgrade() {
         </Link>
         <div>
           <h1 className="font-syne text-2xl font-bold text-[#101323]">Choose Your Plan</h1>
-          <p className="text-sm text-[#667085] mt-0.5">Unlock more presentations with Arena</p>
+          <p className="text-sm text-[#667085] mt-0.5">One-time purchases with credit rollover</p>
         </div>
       </div>
 
@@ -243,9 +254,13 @@ export default function Upgrade() {
                 ) : (
                   <span className="font-syne text-3xl font-bold text-[#101323]">
                     ₹{plan.price}
-                    <span className="text-sm text-[#98A2B3] font-normal">{plan.period}</span>
                   </span>
                 )}
+              </div>
+
+              <div className="flex items-center gap-1 mb-4 text-xs text-[#98A2B3]">
+                <CreditCard size={12} />
+                <span>{plan.creditsPeriod}</span>
               </div>
 
               <ul className="space-y-2.5 mb-6 flex-1">
@@ -271,7 +286,7 @@ export default function Upgrade() {
                       : 'bg-[#101323] text-white'
                   }`}
                 >
-                  {processing === plan.id ? 'Processing...' : plan.price === 0 ? 'Free' : `Upgrade to ${plan.name}`}
+                  {processing === plan.id ? 'Processing...' : plan.price === 0 ? 'Free' : `Get ${plan.name}`}
                 </button>
               )}
             </div>
@@ -281,7 +296,7 @@ export default function Upgrade() {
 
       {/* FAQ */}
       <div className="space-y-4">
-        <h2 className="font-syne text-lg font-semibold text-[#101323]">Frequently Asked Questions</h2>
+        <h2 className="font-syne text-lg font-semibold text-[#101323]">How Credits Work</h2>
         <div className="space-y-3">
           {FAQ.map((item) => (
             <FAQItem key={item.q} item={item} />

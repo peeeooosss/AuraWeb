@@ -1,6 +1,6 @@
 import { json, jsonError, genId, nowIso, getPresentation, savePresentation } from '../../../../../_lib';
 import { requireUser } from '../../../../../_auth';
-import { assertPptAllowed } from '../../../../../_plans';
+import { calculateCredits, assertCreditsAllowed, deductCredits } from '../../../../../_plans';
 
 export const onRequestPost = async ({ params, env, request }) => {
   let user;
@@ -13,8 +13,9 @@ export const onRequestPost = async ({ params, env, request }) => {
   const original = await getPresentation(env, user.id, params.id);
   if (!original) return jsonError('Presentation not found', 404);
 
+  const requiredCredits = calculateCredits({ n_slides: original.n_slides || 8, theme: original.template });
   try {
-    await assertPptAllowed(user.id, env);
+    await assertCreditsAllowed(user.id, env, requiredCredits);
   } catch (err) {
     return jsonError(err.message, err.status || 403, { 'X-Error-Code': err.code || '' });
   }
@@ -29,7 +30,8 @@ export const onRequestPost = async ({ params, env, request }) => {
   };
 
   await savePresentation(env, user.id, copy);
-  return json(copy, 201);
+  await deductCredits(user.id, requiredCredits, env);
+  return json({ ...copy, credits_used: requiredCredits }, 201);
 };
 
 export const onRequest = async (context) => {

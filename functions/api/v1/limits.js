@@ -1,20 +1,20 @@
 import { json, jsonError } from '../../_lib';
 import { requireUser } from '../../_auth';
-import { getPptQuota } from '../../_plans';
+import { getCreditsStatus } from '../../_plans';
 
 export const onRequestGet = async ({ env, request }) => {
   try {
     const user = await requireUser(request, env);
-    const quota = await getPptQuota(user.id, env);
+    const status = await getCreditsStatus(user.id, env);
     return json({
-      plan: quota.plan.id,
-      planName: quota.plan.name,
-      planPrice: quota.plan.price,
-      pptLimit: quota.plan.pptLimit,
-      used: quota.used,
-      remaining: quota.remaining,
-      unlimited: quota.unlimited,
-      apiDaily: quota.plan.apiDaily,
+      plan: status.plan,
+      planName: status.planName,
+      creditsLimit: status.creditsLimit,
+      creditsBalance: status.creditsBalance,
+      unlimited: status.unlimited,
+      usedThisMonth: status.usedThisMonth,
+      rolloverExpiry: status.rolloverExpiry,
+      apiDaily: status.apiDaily,
     });
   } catch (err) {
     return jsonError(err.message, err.status || 401);

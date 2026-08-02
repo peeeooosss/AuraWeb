@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 
 const navLinks = [
-  { name: 'Our SaaS Tools', href: '#tools' },
+  { name: 'Our products', href: '#tools' },
   { name: 'Voice AI Receptionist', href: '#voice' },
   { name: 'Custom Agency', href: '#agency' },
   { name: 'Aura Labs', href: '#labs' },

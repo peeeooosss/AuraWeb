@@ -58,3 +58,25 @@ export function useGenerate() {
 
   return { generate, generating, result, error };
 }
+
+export function useCredits() {
+  const [credits, setCredits] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const loadCredits = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await api.getCredits();
+      setCredits(data);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { loadCredits(); }, [loadCredits]);
+
+  return { credits, loading, error, reload: loadCredits };
+}

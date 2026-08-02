@@ -1,7 +1,6 @@
 import React, { lazy, Suspense, useEffect, useState } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Toaster } from 'sonner';
-import Header from './components/layout/Header';
 import { getSession, onAuthStateChange } from './lib/auth';
 import './styles/arena.css';
 
@@ -12,6 +11,7 @@ const PresentationPage = lazy(() => import('./pages/PresentationPage'));
 const EditorPage = lazy(() => import('./pages/EditorPage'));
 const TemplatesPage = lazy(() => import('./pages/TemplatesPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
+const ProfilePage = lazy(() => import('./pages/ProfilePage'));
 const UpgradePage = lazy(() => import('./pages/Upgrade'));
 const LoginPage = lazy(() => import('./pages/Login'));
 
@@ -54,13 +54,17 @@ export default function ArenaApp() {
     };
   }, []);
 
+  const authRequiredRoutes = [
+    '/dashboard', '/create', '/outline', '/presentation', '/editor',
+    '/templates', '/settings', '/profile', '/api-keys', '/models', '/plans',
+  ];
+  const isProtected = authRequiredRoutes.some(r => location.pathname === r || location.pathname.startsWith(r + '/'));
   const isLogin = location.pathname === '/login';
-  const isDashboard = location.pathname === '/dashboard' || location.pathname === '/';
 
   return (
     <div className="min-h-screen bg-white text-[#101323] font-body antialiased">
-      {!isDashboard && !isLogin && <Header user={user} />}
-      <main className={isDashboard ? '' : ''}>
+      {!isLogin && isProtected && <Header user={user} />}
+      <main>
         <Suspense fallback={<PageLoader />}>
           <Routes>
             <Route
@@ -136,6 +140,30 @@ export default function ArenaApp() {
               element={
                 <RequireAuth user={user} loading={authLoading}>
                   <SettingsPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/profile"
+              element={
+                <RequireAuth user={user} loading={authLoading}>
+                  <ProfilePage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/api-keys"
+              element={
+                <RequireAuth user={user} loading={authLoading}>
+                  <APIKeysPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/models"
+              element={
+                <RequireAuth user={user} loading={authLoading}>
+                  <ModelsPage />
                 </RequireAuth>
               }
             />

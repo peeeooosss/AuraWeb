@@ -1,6 +1,6 @@
 import { json, jsonError, genId, nowIso, clamp } from '../../../../../_lib';
 import { requireUser } from '../../../../../_auth';
-import { assertPptAllowed } from '../../../../../_plans';
+import { calculateCredits, assertCreditsAllowed, deductCredits } from '../../../../../_plans';
 
 export const onRequestPost = async ({ request, env }) => {
   let body = {};
@@ -22,8 +22,9 @@ export const onRequestPost = async ({ request, env }) => {
     return jsonError(err.message, err.status || 401);
   }
 
+  const requiredCredits = calculateCredits(body);
   try {
-    await assertPptAllowed(user.id, env);
+    await assertCreditsAllowed(user.id, env, requiredCredits);
   } catch (err) {
     return jsonError(err.message, err.status || 403, { 'X-Error-Code': err.code || '' });
   }
@@ -48,7 +49,8 @@ export const onRequestPost = async ({ request, env }) => {
   };
 
   await env.ARENA_KV.put(`pres:${user.id}:${id}`, JSON.stringify(pres));
-  return json(pres, 201);
+  await deductCredits(user.id, requiredCredits, env);
+  return json({ ...pres, credits_used: requiredCredits }, 201);
 };
 
 export const onRequest = async (context) => {

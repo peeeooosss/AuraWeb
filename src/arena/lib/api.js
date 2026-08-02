@@ -137,3 +137,41 @@ export function preparePresentation(id) {
 export function slideUpdate(id, data) {
   return request('PATCH', '/presentation/slide_update', { presentation_id: id, ...data });
 }
+
+export async function getCredits() {
+  const token = await getAccessToken();
+  if (!token) throw new Error('Not signed in');
+  const res = await fetch('/api/v1/limits', {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error('Failed to fetch credits');
+  return res.json();
+}
+
+export async function getApiKeys() {
+  return request('GET', '/keys');
+}
+
+export async function createApiKey(data) {
+  return request('POST', '/keys', data);
+}
+
+export async function deleteApiKey(id) {
+  return request('DELETE', `/keys/${id}`);
+}
+
+export async function getPlans() {
+  return request('GET', '/plans');
+}
+
+export async function getBilling() {
+  return request('GET', '/billing');
+}
+
+export async function createBillingOrder(data) {
+  return request('POST', '/billing/create-plan-order', data);
+}
+
+export async function verifyBilling(data) {
+  return request('POST', '/billing/verify-plan', data);
+}

@@ -29,6 +29,15 @@ const products = [
     emoji: '📄',
     color: 'from-blue-500 to-indigo-600',
   },
+  {
+    tag: 'Presentation AI',
+    name: 'AURA Slides',
+    description: 'Create stunning presentations in seconds. AI-powered outlines, designs, and content generation.',
+    url: 'https://arena.tryauraai.in',
+    cta: 'Try Arena',
+    emoji: '✨',
+    color: 'from-purple-500 to-pink-600',
+  },
 ];
 
 export default function SaaSCards() {
@@ -43,13 +52,13 @@ export default function SaaSCards() {
           className="text-center mb-16"
         >
           <span className="inline-block px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-xs text-cyan-400 mb-4">
-            SaaS Tools
+            AURA Products
           </span>
           <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
-            Ready-to-Deploy AI SaaS
+            AI Tools & Playgrounds
           </h2>
           <p className="text-lg text-zinc-400 max-w-2xl mx-auto">
-            Specialized industry tools built for high-growth businesses.
+            Specialized SaaS tools and AI-powered creative playgrounds for high-growth businesses.
           </p>
         </motion.div>
 
