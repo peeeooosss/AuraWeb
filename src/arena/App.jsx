@@ -1,6 +1,7 @@
 import React, { lazy, Suspense, useEffect, useState } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Toaster } from 'sonner';
+import Header from './components/layout/Header';
 import { getSession, onAuthStateChange } from './lib/auth';
 import './styles/arena.css';
 
