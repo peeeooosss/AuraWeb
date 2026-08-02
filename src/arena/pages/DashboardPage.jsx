@@ -1,7 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
-import Header from '../components/layout/Header';
 import PresentationGrid from '../components/dashboard/PresentationGrid';
 import { usePresentations } from '../hooks/useApi';
 import { supabase } from '../lib/auth';
@@ -66,8 +65,6 @@ export default function DashboardPage() {
 
   return (
     <div className="relative min-h-screen w-full pb-10 bg-white">
-      <Header user={user} />
-
       {/* Actions */}
       <section className="relative z-10 overflow-visible pb-0 pl-3 pr-3 pt-[17px] sm:pl-6 sm:pr-[9px]">
         <h2 className="w-full font-syne text-[16px] font-medium leading-normal text-[#191919]">
