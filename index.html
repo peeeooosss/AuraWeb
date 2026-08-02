@@ -4,22 +4,26 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Aura AI — Enterprise AI Ecosystem</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Syne:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700&family=Unbounded:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
     <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg viewBox='0 0 240 240' xmlns='http://www.w3.org/2000/svg'><defs><linearGradient id='a' x1='15%25' y1='0%25' x2='85%25' y2='100%25'><stop offset='0%25' stop-color='%232FF3E0'/><stop offset='100%25' stop-color='%236B21D8'/></linearGradient></defs><path d='M124,28 L30,212 L76,212 L114,110 Z' fill='url(%23a)'/><path d='M124,28 L218,212 L172,212 L134,110 Z' fill='%23B14EFF'/></svg>" />
     <script>
       // Dynamic title based on subdomain
       (function() {
         var host = window.location.hostname;
+        var isSubdomain = host.split('.').length > 2;
         if (host.includes('tablely') || host.includes('resto')) {
           document.title = 'Tablely — QR Digital Menus & WhatsApp POS';
         } else if (host.includes('arena')) {
-          document.title = 'AuraAI — Gamified Learning Portal';
+          document.title = 'Arena — AI Presentation Studio';
+        } else if (isSubdomain && (host.includes('tryauraai') || host.includes('workspace'))) {
+          document.title = 'TryAuraAI — AI Presentation Generator';
         } else if (host.includes('career')) {
           document.title = 'Aura Career — Resume Builder & Job Copilot';
         } else if (host.includes('coach')) {
           document.title = 'Aura Coach — WhatsApp Automation';
-        } else if (host.includes('workspace')) {
-          document.title = 'Aura Workspace — Presentation Studio';
         }
       })();
     </script>

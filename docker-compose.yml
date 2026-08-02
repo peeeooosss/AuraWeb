@@ -1,0 +1,56 @@
+# TryAuraAI — Local Development Stack
+# Presenton (AI Presentation Generator) + Native macOS Ollama
+#
+# Usage:
+#   docker compose up -d              # start everything
+#   docker compose logs -f presenton  # watch presenton logs
+#   docker compose down               # stop everything
+#
+# Presenton UI:    http://localhost:5001
+# Ollama API:      http://localhost:11434  (native macOS app)
+# Presenton API:   http://localhost:5001/api/v1/ppt/presentation/generate
+
+services:
+  presenton:
+    image: ghcr.io/presenton/presenton:latest
+    platform: ${PRESENTON_DOCKER_PLATFORM:-linux/amd64}
+    ports:
+      - "${PRESENTON_HOST_PORT:-5001}:80"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - app_data:/app_data
+    environment:
+      - PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+      - PRESENTON_HOST_HTTP_PORT=80
+      - MIGRATE_DATABASE_ON_STARTUP=true
+
+      # ── LLM Configuration (OpenRouter cloud API) ──
+      - LLM=openrouter
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+      - OPENROUTER_MODEL=${OPENROUTER_MODEL:-openai/gpt-4o}
+
+      # ── Image Provider (Pexels = free, no API key required) ──
+      - IMAGE_PROVIDER=pexels
+      - PEXELS_API_KEY=${PEXELS_API_KEY:-}
+
+      # ── Disable features not needed for API-only mode ──
+      - CAN_CHANGE_KEYS=true
+      - DISABLE_ANONYMOUS_TRACKING=true
+
+      # ── Admin Auth (for Presenton UI) ──
+      - AUTH_USERNAME=${PRESENTON_ADMIN_USER:-admin}
+      - AUTH_PASSWORD=${PRESENTON_ADMIN_PASS:-change-me-in-production}
+
+      # ── Presentation Memory (Mem0) — disabled to save RAM on M1 8GB ──
+      - MEM0_ENABLED=false
+
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:80/health', r => { process.exit(r.statusCode === 200 ? 0 : 1) })\""]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 60s
+
+volumes:
+  app_data:
