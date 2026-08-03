@@ -21,6 +21,9 @@ export default function ProtectedRoute({ children, requiredRole }) {
   }
 
   if (requiredRole && user.role !== requiredRole) {
+    if (requiredRole === "staff") {
+      return <Navigate to={`/${restaurantId}/staff/login`} replace />;
+    }
     return <Navigate to="/" replace />;
   }
 

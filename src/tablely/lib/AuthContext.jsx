@@ -92,19 +92,22 @@ export function AuthProvider({ children }) {
   }, []);
 
   const signInAsStaff = useCallback(async (username, password, restaurantId) => {
+    setLoading(true);
     const res = await fetch("/api/staff/signin", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, password, restaurantId }),
     });
     const body = await res.json();
-    if (!res.ok) throw new Error(body.error);
-
+    if (!res.ok) {
+      setLoading(false);
+      throw new Error(body.error);
+    }
     await supabase.auth.setSession({
       access_token: body.accessToken,
       refresh_token: body.refreshToken,
     });
-
+    // Don't setLoading(false) — hydrateUser will do it via onAuthStateChange
     return body;
   }, []);
 

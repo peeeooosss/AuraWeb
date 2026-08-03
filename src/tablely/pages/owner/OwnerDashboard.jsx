@@ -296,7 +296,7 @@ function OwnerDashboardInner() {
                   </div>
                 </div>
 
-                {/* Staff Dashboard — blurred for Starter */}
+                {/* Staff Dashboard — clickable link to staff login */}
                 {hasFeature(tier, "staff_portal_full") ? (
                   <div className="rounded-lg border border-paper-line bg-white/60 p-5">
                     <div className="flex items-center gap-2 mb-1">
@@ -309,12 +309,18 @@ function OwnerDashboardInner() {
                       </div>
                     </div>
                     <div className="mt-3 flex items-center gap-2">
-                      <code className="flex-1 truncate rounded border border-paper-line bg-paper-dim/50 px-3 py-2 font-mono text-xs text-ink-soft">
-                        {window.location.origin}/{restaurantId}/staff
-                      </code>
+                      <a
+                        href={`/${restaurantId}/staff/login`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex flex-1 items-center gap-1.5 truncate rounded border border-paper-line bg-paper-dim/50 px-3 py-2 font-body text-xs font-semibold text-ink hover:bg-paper-line/40 transition-colors"
+                      >
+                        <ExternalLink size={13} className="shrink-0 text-sage" />
+                        <span className="truncate">Open Staff Login</span>
+                      </a>
                       <button
                         onClick={() => {
-                          navigator.clipboard.writeText(`${window.location.origin}/${restaurantId}/staff`);
+                          navigator.clipboard.writeText(`${window.location.origin}/${restaurantId}/staff/login`);
                           setCopiedLink("staff");
                           setTimeout(() => setCopiedLink(null), 2000);
                         }}
@@ -337,7 +343,7 @@ function OwnerDashboardInner() {
                     </div>
                     <div className="mt-3 flex items-center gap-2">
                       <code className="flex-1 truncate rounded border border-paper-line bg-paper-dim/50 px-3 py-2 font-mono text-xs text-ink-soft">
-                        {window.location.origin}/{restaurantId}/staff
+                        {window.location.origin}/{restaurantId}/staff/login
                       </code>
                       <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded border border-paper-line">
                         <Copy size={14} />
