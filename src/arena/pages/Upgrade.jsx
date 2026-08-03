@@ -175,7 +175,7 @@ export default function Upgrade() {
         key: orderData.key_id,
         amount: orderData.amount,
         currency: orderData.currency || 'INR',
-        name: 'Arena',
+        name: 'Arena Slides',
         description: `${plan.name} plan — ${plan.credits} credits for ₹${plan.price}`,
         order_id: orderData.razorpay_order_id,
         prefill: { email: 'user@example.com' },

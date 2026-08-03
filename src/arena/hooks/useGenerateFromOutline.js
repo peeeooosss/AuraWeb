@@ -32,6 +32,8 @@ export function useGenerateFromOutline() {
         throw new Error(err.detail || 'Generation failed');
       }
 
+      window.dispatchEvent(new CustomEvent('credits:updated'));
+
       // Step 3: Navigate to presentation with streaming params
       navigate(`/presentation?id=${presentationId}&stream=true&type=standard`);
       return true;

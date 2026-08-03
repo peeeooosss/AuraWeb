@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Sparkles, Settings, Crown, LogOut, CreditCard, User, Key, Cpu } from 'lucide-react';
+import { Sparkles, Settings, Crown, LogOut, CreditCard, User, Key, Cpu, Presentation } from 'lucide-react';
 import { signOut, getAccessToken } from '../../lib/auth';
 
 function formatNumber(n) {
@@ -44,6 +44,21 @@ export default function Header({ user }) {
       }
     };
     if (user) fetchCredits();
+  }, [user, location.pathname]);
+
+  useEffect(() => {
+    const handleCreditsUpdated = () => {
+      if (!user) return;
+      getAccessToken().then((token) => {
+        if (!token) return;
+        fetch('/api/v1/limits', { headers: { Authorization: `Bearer ${token}` } })
+          .then((res) => (res.ok ? res.json() : null))
+          .then((data) => data && setCredits(data))
+          .catch(() => {});
+      });
+    };
+    window.addEventListener('credits:updated', handleCreditsUpdated);
+    return () => window.removeEventListener('credits:updated', handleCreditsUpdated);
   }, [user]);
 
   const linkClass = (paths) => {
@@ -68,11 +83,11 @@ export default function Header({ user }) {
     <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-[#EDEEEF]">
       <div className="max-w-7xl mx-auto flex items-center justify-between h-20 px-6">
         <Link to="/dashboard" className="flex items-center gap-3 group">
-          <div className="bg-[#7A5AF8] rounded-full p-1 flex items-center justify-center">
-            <img src="/arena/logo-with-bg.png" alt="Arena" className="h-[32px] object-contain" />
+          <div className="w-8 h-8 rounded-lg bg-[#7A5AF8] flex items-center justify-center">
+            <Presentation size={18} className="text-white" />
           </div>
           <span className="font-syne font-bold text-lg text-[#101323]">
-            Arena
+            Arena Slides
           </span>
         </Link>
 

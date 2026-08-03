@@ -517,7 +517,7 @@ export function slideContentPrompt({ outline, layout, schema, slideNumber, total
   if (tone) lines.push(`- Tone: ${tone}.`);
   if (verbosity === 'concise') lines.push('- Be concise.');
   else if (verbosity === 'text-heavy') lines.push('- Be detailed and text-heavy.');
-  else lines.write && lines.push('- Standard verbosity.');
+  else lines.push('- Standard verbosity.');
   lines.push('');
   if (slideNumber) lines.push(`# Slide Number:\n${slideNumber}`);
   lines.push('');

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Mail, Lock, Loader2, Chrome, Eye, EyeOff, ArrowRight } from 'lucide-react';
+import { Mail, Lock, Loader2, Chrome, Eye, EyeOff, ArrowRight, Presentation } from 'lucide-react';
 import { supabase } from '../lib/auth';
 
 export default function LoginPage() {
@@ -60,9 +60,9 @@ export default function LoginPage() {
       <div className="w-full max-w-md rounded-2xl border border-[#EDEEEF] bg-white p-8 shadow-sm">
         <div className="text-center mb-8">
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#7A5AF8]">
-            <img src="/arena/logo-with-bg.png" alt="Arena" className="h-[36px] object-contain" />
+            <Presentation size={28} className="text-white" />
           </div>
-          <h1 className="font-syne text-2xl font-bold text-[#101323]">Welcome to Arena</h1>
+          <h1 className="font-syne text-2xl font-bold text-[#101323]">Welcome to Arena Slides</h1>
           <p className="mt-2 text-sm text-[#667085]">
             {isSignUp ? 'Create an account to start making presentations' : 'Sign in to access your presentations'}
           </p>

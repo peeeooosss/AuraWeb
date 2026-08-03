@@ -1,6 +1,8 @@
-import { jsonError, getPresentation, savePresentation, sseStream, cleanJsonText, clamp } from '../../../../../_lib';
+import { jsonError, getPresentation, savePresentation, sseStream, cleanJsonText, clamp, fanOutWebhooks } from '../../../../../_lib';
 import { requireUser } from '../../../../../_auth';
 import { llmChat, streamChatDelta, assertKey } from '../../../../../_llm';
+import { OUTLINE_CREDIT_COST, assertCreditsAllowed, deductCredits } from '../../../../../_plans';
+import { generateSearchQuery, routeSearch, formatSearchResults } from '../../../../../_websearch';
 
 const MAX_SLIDES = 40;
 const MAX_OUTLINE_WORDS = 80;
@@ -24,16 +26,17 @@ function buildSystemPrompt({ language, tone, verbosity, instructions }) {
     'Each slide title under 60 characters; each slide content under ' + MAX_OUTLINE_WORDS + ' words.',
     'The first slide title must equal the presentation title, and its content should only cover title, presenter, date, and a short overview.',
     'Give each slide one clear purpose, build a coherent narrative, and avoid repetition or filler.',
-    'Use concrete facts and numbers when supported by the user content.',
-    'Never include URLs, citations, footnotes, or source lists.',
+    'Use concrete facts, statistics, and numbers from the provided research when available.',
+    'Incorporate real data points and cited information naturally into slide content.',
+    'Optionally reference the article titles or publication names in the content for credibility, but do not include raw URLs.',
     'Write only audience-facing content.',
     'Ensure data is consistent across all slides.',
   ].join('\n');
 }
 
-function buildUserPrompt({ content, nSlides, language, tone, instructions }) {
+function buildUserPrompt({ content, nSlides, language, tone, instructions, searchContext }) {
   const today = new Date().toISOString().slice(0, 10);
-  return [
+  const parts = [
     'Generation Settings (authoritative):',
     `Number of Slides: ${nSlides}`,
     `Maximum Slides: ${MAX_SLIDES}`,
@@ -45,7 +48,13 @@ function buildUserPrompt({ content, nSlides, language, tone, instructions }) {
     '',
     `Content: ${content || ''}`,
     `Instructions (apply as constraints, never quote as slide content): ${instructions || ''}`,
-  ].join('\n');
+  ];
+
+  if (searchContext) {
+    parts.push('', '# Research Sources (use facts from these):', searchContext);
+  }
+
+  return parts.join('\n');
 }
 
 export const onRequestGet = async ({ params, env, request }) => {
@@ -69,13 +78,40 @@ export const onRequestGet = async ({ params, env, request }) => {
       return error(err.message);
     }
 
+    try {
+      await assertCreditsAllowed(user.id, env, OUTLINE_CREDIT_COST);
+    } catch (err) {
+      return error(`Insufficient credits to generate an outline. ${err?.message || ''}`);
+    }
+
+    const nSlides = clamp(Number(pres.n_slides) || 8, 1, MAX_SLIDES);
+    const wantSearch = pres.web_search === true;
+
+    let searchResults = [];
+    let searchProvider = null;
+
+    if (wantSearch) {
+      await status('Researching your topic...');
+      try {
+        const query = (await generateSearchQuery(env, pres.content, pres.language)) || pres.content;
+        const outcome = await routeSearch(env, query, { userId: user.id });
+        searchResults = outcome.results;
+        searchProvider = outcome.provider;
+        if (searchResults.length > 0) {
+          await status(`Found ${searchResults.length} research sources via ${searchProvider}...`);
+        }
+      } catch {
+        // search is best-effort; continue with just the prompt
+      }
+    }
+
     let accumulated = '';
     let cleaned = null;
 
     try {
       await status('Preparing your presentation outline...');
 
-      const nSlides = clamp(Number(pres.n_slides) || 8, 1, MAX_SLIDES);
+      const searchContext = formatSearchResults(searchResults);
       const messages = [
         {
           role: 'system',
@@ -94,13 +130,14 @@ export const onRequestGet = async ({ params, env, request }) => {
             language: pres.language || 'English',
             tone: pres.tone,
             instructions: pres.instructions,
+            searchContext,
           }),
         },
       ];
 
       await status('Writing your slide outlines...');
 
-      const { res } = await llmChat(env, { messages, stream: true, temperature: 0.7, max_tokens: 6000 });
+      const { res } = await llmChat(env, { messages, stream: true, temperature: 0.7, max_tokens: 10000 });
       await streamChatDelta(res, (delta) => {
         const cleanedDelta = delta.replace(/```(?:json)?/g, '');
         if (!cleanedDelta) return;
@@ -138,11 +175,22 @@ export const onRequestGet = async ({ params, env, request }) => {
       pres.title = title;
       pres.n_slides = slides.length;
       pres.status = 'outlined';
+      if (searchResults.length > 0) {
+        pres.sources = searchResults.map((r) => ({
+          title: r.title,
+          url: r.url,
+          snippet: r.snippet,
+        }));
+        pres.search_provider = searchProvider;
+      }
 
       await savePresentation(env, user.id, pres);
 
+      await deductCredits(user.id, OUTLINE_CREDIT_COST, env);
+
       await status('Outline ready');
       complete({ presentation: pres });
+      fanOutWebhooks(env, user.id, { type: 'outline.completed', presentation_id: pres.id, title: pres.title });
     } catch (err) {
       return error(`Failed to generate presentation outlines: ${err?.message || 'unknown error'}`);
     }

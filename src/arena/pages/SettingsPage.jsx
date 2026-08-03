@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Copy, Plus, Trash, Eye, EyeOff, Loader2, CreditCard, Shield, Zap, Settings as SettingsIcon, User, Key, Crown, Receipt, Wifi, WifiOff, ExternalLink } from 'lucide-react';
 import { authFetch } from '../lib/api';

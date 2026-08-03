@@ -1,2 +1,8 @@
-/assets/* /assets/:splat 200
-/* /index.html 200
+# Sub-app routes (SPA fallback handled by each app's router)
+/calculator/*  /calculator/:splat  200
+/arena/*       /arena/:splat       200
+/tryauraai/*   /tryauraai/:splat   200
+/tablely/*     /tablely/:splat     200
+
+# Main SPA fallback
+/*  /index.html  200

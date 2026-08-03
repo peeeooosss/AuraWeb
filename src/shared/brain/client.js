@@ -1,43 +1,21 @@
 
 
-const OPENROUTER_KEY = import.meta.env.VITE_OPENROUTER_KEY;
-const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
+const ZENGO_KEY = import.meta.env.VITE_ZENGO_KEY;
+const ZENGO_URL = 'https://opencode.ai/zen/go/v1/chat/completions';
 
 // ─── Model Registry ───────────────────────────────────────────────────────────
 export const MODELS = {
-  // FREE MODELS
-  'gemma-4-26b':         { id: 'google/gemma-4-26b-a4b-it:free',          inputCost: 0,     outputCost: 0,     speed: 'fast',    tier: 'free' },
-  'gemma-4-31b':         { id: 'google/gemma-4-31b-it:free',              inputCost: 0,     outputCost: 0,     speed: 'fast',    tier: 'free' },
-  'nemotron-ultra':      { id: 'nvidia/nemotron-3-ultra-550b-a55b:free',  inputCost: 0,     outputCost: 0,     speed: 'medium',  tier: 'free' },
-  'nemotron-super':      { id: 'nvidia/nemotron-3-super-120b-a12b:free',  inputCost: 0,     outputCost: 0,     speed: 'medium',  tier: 'free' },
-  'nemotron-nano':       { id: 'nvidia/nemotron-3-nano-30b-a3b:free',     inputCost: 0,     outputCost: 0,     speed: 'fast',    tier: 'free' },
-  'llama-3.3-70b':       { id: 'meta-llama/llama-3.3-70b-instruct:free',  inputCost: 0,     outputCost: 0,     speed: 'medium',  tier: 'free' },
-  'qwen3-coder-free':    { id: 'qwen/qwen3-coder:free',                  inputCost: 0,     outputCost: 0,     speed: 'medium',  tier: 'free' },
-
-  // PAID MODELS — verified working with $5 credit
-  'deepseek-v4-flash':   { id: 'deepseek/deepseek-v4-flash',             inputCost: 0.09,  outputCost: 0.18,  speed: 'fast',    tier: 'paid' },
-  'gpt-4o-mini':         { id: 'openai/gpt-4o-mini',                      inputCost: 0.15,  outputCost: 0.60,  speed: 'fast',    tier: 'paid' },
-  'deepseek-chat':       { id: 'deepseek/deepseek-chat',                 inputCost: 0.20,  outputCost: 0.80,  speed: 'medium',  tier: 'paid' },
-  'claude-sonnet-5':     { id: 'anthropic/claude-sonnet-5',               inputCost: 2.00,  outputCost: 10.00, speed: 'medium',  tier: 'paid' },
-  'gpt-4o':              { id: 'openai/gpt-4o',                           inputCost: 2.50,  outputCost: 10.00, speed: 'medium',  tier: 'paid' },
+  'deepseek-v4-pro':     { id: 'deepseek-v4-pro',     inputCost: 0.44, outputCost: 0.87, speed: 'medium', tier: 'paid' },
+  'deepseek-v4-flash':   { id: 'deepseek-v4-flash',   inputCost: 0.09, outputCost: 0.18, speed: 'fast',   tier: 'paid' },
 };
 
 // ─── Model Lists by Tier (cost-ordered, free models first) ────────────────────
 const TIER_MODELS = {
-  student: [
-    'gemma-4-26b', 'gemma-4-31b', 'nemotron-ultra', 'nemotron-super', 'nemotron-nano',
-    'llama-3.3-70b', 'qwen3-coder-free',
-    'deepseek-v4-flash', // paid fallback
-  ],
-  creator: [
-    'gemma-4-26b', 'gemma-4-31b', 'nemotron-ultra', 'nemotron-super',
-    'deepseek-v4-flash', 'gpt-4o-mini', 'deepseek-chat',
-  ],
+  student: ['deepseek-v4-flash', 'deepseek-v4-pro'],
+  creator: ['deepseek-v4-flash', 'deepseek-v4-pro'],
 };
 
-// Fast, paid-only models for document/PPT generation — no free-tier fallback,
-// fails fast instead of cascading through 7+ slow/rate-limited free models.
-const DOCUMENT_FAST_MODELS = ['deepseek-v4-flash', 'gpt-4o-mini'];
+const DOCUMENT_FAST_MODELS = ['deepseek-v4-flash', 'deepseek-v4-pro'];
 
 // ─── Query-Based Model Routing ────────────────────────────────────────────────
 const QUERY_PATTERNS = {
@@ -52,14 +30,14 @@ const QUERY_PATTERNS = {
 };
 
 const QUERY_MODEL_BOOST = {
-  simple:      ['gemma-4-26b', 'gemma-4-31b'],
-  math:        ['gemma-4-26b'],
-  document:    ['deepseek-v4-flash', 'gpt-4o-mini'],
-  code:        ['deepseek-v4-flash', 'deepseek-chat'],
-  education:   ['deepseek-v4-flash'],
-  youtube:     ['deepseek-v4-flash', 'gpt-4o-mini'],
-  creative:    ['gemma-4-26b', 'nemotron-ultra'],
-  translation: ['gemma-4-26b', 'nemotron-ultra'],
+  simple:      ['deepseek-v4-flash'],
+  math:        ['deepseek-v4-pro'],
+  document:    ['deepseek-v4-flash'],
+  code:        ['deepseek-v4-pro'],
+  education:   ['deepseek-v4-pro'],
+  youtube:     ['deepseek-v4-flash'],
+  creative:    ['deepseek-v4-pro'],
+  translation: ['deepseek-v4-pro'],
 };
 
 export function classifyQuery(message) {
@@ -132,46 +110,15 @@ function stripThinkingTags(content) {
   return content.replace(/<think>[\s\S]*?<\/think>/gi, '').replace(/<reasoning>[\s\S]*?<\/reasoning>/gi, '').trim();
 }
 
-// ─── Provider Detection ──────────────────────────────────────────────────────
-
-function isAnthropicModel(model) {
-  return model.startsWith('anthropic/');
-}
-
-function isDeepSeekModel(model) {
-  return model.startsWith('deepseek/');
-}
-
 // ─── Cache Metrics ──────────────────────────────────────────────────────────
 
 export function extractCacheMetrics(usage, model = '') {
   if (!usage) return { cachedTokens: 0, cacheWriteTokens: 0, cacheSavings: 0 };
 
-  // Anthropic/OpenAI format: prompt_tokens_details.cached_tokens
-  let cachedTokens = usage.prompt_tokens_details?.cached_tokens || 0;
+  let cachedTokens = usage.prompt_cache_hit_tokens || 0;
   let cacheWriteTokens = usage.prompt_tokens_details?.cache_creation_input_tokens || 0;
 
-  // DeepSeek format: prompt_cache_hit_tokens
-  if (!cachedTokens && usage.prompt_cache_hit_tokens) {
-    cachedTokens = usage.prompt_cache_hit_tokens;
-  }
-
-  // Google format: metadata.prompt_tokens_details
-  if (!cachedTokens && usage.metadata?.prompt_tokens_details?.cached_tokens) {
-    cachedTokens = usage.metadata.prompt_tokens_details.cached_tokens;
-  }
-
-  // Calculate cache savings based on provider
-  let cacheSavings = 0;
-  if (cachedTokens > 0) {
-    if (isAnthropicModel(model)) {
-      cacheSavings = 0.90; // 90% discount for Anthropic
-    } else if (isDeepSeekModel(model)) {
-      cacheSavings = 0.90; // 90% discount for DeepSeek
-    } else {
-      cacheSavings = 0.50; // 50% discount for OpenAI/Google
-    }
-  }
+  let cacheSavings = cachedTokens > 0 ? 0.90 : 0;
 
   return { cachedTokens, cacheWriteTokens, cacheSavings };
 }
@@ -180,9 +127,8 @@ export function extractCacheMetrics(usage, model = '') {
 
 async function callModel(model, messages, maxTokens) {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 25000); // 25s timeout
+  const timeoutId = setTimeout(() => controller.abort(), 25000);
   try {
-    // Build request body with cache control for Anthropic models
     const body = {
       model,
       messages,
@@ -190,27 +136,12 @@ async function callModel(model, messages, maxTokens) {
       max_tokens: maxTokens,
     };
 
-    // Add cache_control for Anthropic models (enables 90% cache discount)
-    if (isAnthropicModel(model)) {
-      body.messages = messages.map((msg, idx) => {
-        if (msg.role === 'system') {
-          return {
-            ...msg,
-            cache_control: { type: 'ephemeral' },
-          };
-        }
-        return msg;
-      });
-    }
-
-    const response = await fetch(OPENROUTER_URL, {
+    const response = await fetch(ZENGO_URL, {
       signal: controller.signal,
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${OPENROUTER_KEY}`,
+        'Authorization': `Bearer ${ZENGO_KEY}`,
         'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://tryauraai.in',
-        'X-Title': 'AuraAI',
       },
       body: JSON.stringify(body),
     });
@@ -250,15 +181,13 @@ async function callModel(model, messages, maxTokens) {
 }
 
 // ─── Streaming API Call ─────────────────────────────────────────────────────
-// Reads the OpenRouter SSE stream and invokes onDelta(deltaText, accumulated)
+// Reads the ZenGo SSE stream and invokes onDelta(deltaText, accumulated)
 // as tokens arrive, so the UI can show real-time progress instead of a
 // blind multi-minute wait.
 
 async function callModelStream(model, messages, maxTokens, onDelta, { signal } = {}) {
   const controller = new AbortController();
   if (signal) signal.addEventListener('abort', () => controller.abort(), { once: true });
-  // Short timeout to first byte — free/slow models that never respond get
-  // dropped fast instead of blocking for 25s.
   let connectTimeoutId = setTimeout(() => controller.abort(), 10000);
   let overallTimeoutId = null;
 
@@ -269,26 +198,14 @@ async function callModelStream(model, messages, maxTokens, onDelta, { signal } =
       temperature: 0.7,
       max_tokens: maxTokens,
       stream: true,
-      usage: { include: true },
     };
 
-    if (isAnthropicModel(model)) {
-      body.messages = messages.map((msg) => {
-        if (msg.role === 'system') {
-          return { ...msg, cache_control: { type: 'ephemeral' } };
-        }
-        return msg;
-      });
-    }
-
-    const response = await fetch(OPENROUTER_URL, {
+    const response = await fetch(ZENGO_URL, {
       signal: controller.signal,
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${OPENROUTER_KEY}`,
+        'Authorization': `Bearer ${ZENGO_KEY}`,
         'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://tryauraai.in',
-        'X-Title': 'AuraAI',
       },
       body: JSON.stringify(body),
     });

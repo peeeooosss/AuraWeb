@@ -31,7 +31,7 @@ function extractImage(slide) {
 }
 
 function extractSpeakerNote(slide) {
-  return slide.content?.__speaker_note__ || '';
+  return slide.speaker_note || slide.content?.__speaker_note__ || '';
 }
 
 function FallbackSlide({ slide, index, total, compact }) {

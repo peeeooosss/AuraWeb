@@ -60,6 +60,10 @@ export const CREDIT_COST = {
   premiumTheme: 3,
 };
 
+export const OUTLINE_CREDIT_COST = 2;
+export const SLIDES_MIN_CREDITS = 15;
+export const SLIDES_MAX_CREDITS = 20;
+
 export function calculateCredits(data) {
   const {
     n_slides = 8,
@@ -77,6 +81,11 @@ export function calculateCredits(data) {
   const mult = MODEL_MULTIPLIER[model] || MODEL_MULTIPLIER['claude-sonnet-5'];
   credits = Math.ceil(credits * mult);
   return Math.max(10, Math.min(20, credits));
+}
+
+export function calculateSlidesCredits(nSlides) {
+  const credits = Math.ceil((nSlides || 8) * CREDIT_COST.perSlide * (MODEL_MULTIPLIER['claude-sonnet-5'] || 1));
+  return Math.max(SLIDES_MIN_CREDITS, Math.min(SLIDES_MAX_CREDITS, credits));
 }
 
 export async function getUserPlan(userId, env) {
@@ -157,27 +166,66 @@ export async function assertCreditsAllowed(userId, env, requiredCredits) {
 export async function deductCredits(userId, credits, env) {
   const url = env?.VITE_SUPABASE_URL;
   if (!url) return;
+
+  // Primary path: RPC. Only trust it if it actually returns a numeric new balance.
+  // (A 204/empty/no-op response means the function is missing/stubbed — fall through.)
+  let rpcApplied = false;
   try {
     const res = await fetch(`${url}/rest/v1/rpc/deduct_credits`, {
       method: 'POST',
       headers: supabaseHeaders(env, true),
       body: JSON.stringify({ p_user_id: userId, p_credits: credits }),
     });
-    if (!res.ok && res.status !== 404) {
-      const text = await res.text().catch(() => '');
-      console.error('deductCredits RPC failed:', res.status, text);
-      // Fallback to direct UPDATE
-      await fetch(`${url}/rest/v1/user_plans?user_id=eq.${userId}`, {
-        method: 'PATCH',
+    if (res.ok) {
+      const body = await res.text().catch(() => '');
+      const trimmed = body.trim();
+      if (trimmed !== '' && !Number.isNaN(Number(trimmed))) {
+        rpcApplied = true;
+      } else {
+        console.error('deductCredits RPC returned no numeric balance:', res.status, JSON.stringify(body));
+      }
+    } else {
+      console.error('deductCredits RPC failed:', res.status, await res.text().catch(() => ''));
+    }
+  } catch (e) {
+    console.error('deductCredits RPC error:', e.message);
+  }
+  if (rpcApplied) return;
+
+  // Fallback: direct upsert / decrement on user_plans (reliable regardless of RPC).
+  try {
+    const existing = await fetch(`${url}/rest/v1/user_plans?user_id=eq.${userId}&select=user_id`, {
+      headers: supabaseHeaders(env, true),
+    });
+    const existingData = await existing.json().catch(() => []);
+    const rows = Array.isArray(existingData) ? existingData : [];
+    if (rows.length === 0) {
+      await fetch(`${url}/rest/v1/user_plans`, {
+        method: 'POST',
         headers: supabaseHeaders(env, true),
         body: JSON.stringify({
-          credits_balance: { decrement: credits },
+          user_id: userId,
+          plan: 'free',
+          status: 'active',
+          credits_balance: Math.max((PLANS.free.credits || 50) - credits, 0),
           updated_at: new Date().toISOString(),
         }),
       });
+      return;
+    }
+    const patchRes = await fetch(`${url}/rest/v1/user_plans?user_id=eq.${userId}`, {
+      method: 'PATCH',
+      headers: supabaseHeaders(env, true),
+      body: JSON.stringify({
+        credits_balance: { decrement: credits },
+        updated_at: new Date().toISOString(),
+      }),
+    });
+    if (!patchRes.ok) {
+      console.error('deductCredits PATCH fallback failed:', patchRes.status, await patchRes.text().catch(() => ''));
     }
   } catch (e) {
-    console.error('deductCredits error:', e.message);
+    console.error('deductCredits PATCH fallback error:', e.message);
   }
 }
 

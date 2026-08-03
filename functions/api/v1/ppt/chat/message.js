@@ -1,14 +1,10 @@
-import { json, jsonError, getPresentation, savePresentation, cleanJsonText, clamp } from '../../../../_lib';
+import { json, jsonError, getPresentation, savePresentation, cleanJsonText, clamp, nowIso } from '../../../../_lib';
 import { requireUser } from '../../../../_auth';
 import { llmJson, assertKey } from '../../../../_llm';
 
 export const onRequestPost = async ({ request, env }) => {
   let body = {};
-  try {
-    body = await request.json();
-  } catch {
-    // ignore
-  }
+  try { body = await request.json(); } catch {}
 
   const presentationId = body.presentation_id;
   const message = String(body.message || '').trim();
@@ -16,20 +12,17 @@ export const onRequestPost = async ({ request, env }) => {
   if (!message) return jsonError('message is required', 400);
 
   let user;
-  try {
-    user = await requireUser(request, env);
-  } catch (err) {
+  try { user = await requireUser(request, env); } catch (err) {
     return jsonError(err.message, err.status || 401);
   }
 
   const pres = await getPresentation(env, user.id, presentationId);
   if (!pres) return jsonError('Presentation not found', 404);
 
-  try {
-    assertKey(env);
-  } catch (err) {
-    return jsonError(err.message, 500);
-  }
+  try { assertKey(env); } catch (err) { return jsonError(err.message, 500); }
+
+  const history = Array.isArray(pres.chat_history) ? pres.chat_history.slice(-20) : [];
+  history.push({ role: 'user', content: message, at: nowIso() });
 
   const current = (pres.outlines?.slides || [])
     .map((s, i) => `${i + 1}. ${s.title || ''}\n   ${(s.content || '').slice(0, 300)}`)
@@ -49,10 +42,7 @@ export const onRequestPost = async ({ request, env }) => {
           'Each slide content is audience-facing markdown, max 80 words.',
         ].join('\n'),
       },
-      {
-        role: 'user',
-        content: `Current outline:\n${current || '(empty outline)'}\n\nUser request: ${message}`,
-      },
+      { role: 'user', content: `Current outline:\n${current || '(empty outline)'}\n\nUser request: ${message}` },
     ],
     temperature: 0.6,
     max_tokens: 6000,
@@ -60,34 +50,28 @@ export const onRequestPost = async ({ request, env }) => {
 
   const cleaned = cleanJsonText(raw);
   let parsed = null;
-  if (cleaned) {
-    try {
-      parsed = JSON.parse(cleaned);
-    } catch {
-      parsed = null;
-    }
-  }
+  try { parsed = cleaned ? JSON.parse(cleaned) : null; } catch { parsed = null; }
+
+  const summary = String(parsed?.summary || 'Done! I updated your outline.');
+  history.push({ role: 'assistant', content: summary, at: nowIso() });
 
   const slides = Array.isArray(parsed?.outlines?.slides)
-    ? parsed.outlines.slides
-        .map((s) => ({ title: String(s.title || '').trim(), content: String(s.content || '').trim() }))
-        .filter((s) => s.content || s.title)
+    ? parsed.outlines.slides.map((s) => ({ title: String(s.title || '').trim(), content: String(s.content || '').trim() })).filter((s) => s.content || s.title)
     : pres.outlines?.slides || [];
 
   if (slides.length) {
-    const title = String(parsed.outlines.title || slides[0]?.title || pres.title || 'Untitled').trim();
+    const title = String(parsed?.outlines?.title || slides[0]?.title || pres.title || 'Untitled').trim();
     pres.outlines = { title, slides };
     pres.title = title;
     pres.n_slides = clamp(slides.length, 1, 40);
-    await savePresentation(env, user.id, pres);
   }
 
-  return json({ response: String(parsed?.summary || 'Done! I updated your outline.') });
+  pres.chat_history = history;
+  await savePresentation(env, user.id, pres);
+  return json({ response: summary, history });
 };
 
 export const onRequest = async (context) => {
-  if (context.request.method === 'OPTIONS') {
-    return new Response(null, { status: 204 });
-  }
+  if (context.request.method === 'OPTIONS') return new Response(null, { status: 204 });
   return onRequestPost(context);
 };

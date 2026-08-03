@@ -6,11 +6,11 @@
  * with Kimi K2.7-Code used for the reasoning/premium tier and as a fallback.
  */
 
-// Internal OpenRouter model IDs
+// Internal model IDs
 export const INTERNAL_MODELS = {
-  'deepseek-v4-pro': 'deepseek/deepseek-v4-pro',
-  'deepseek-v4-flash': 'deepseek/deepseek-v4-flash',
-  'kimi-k2.7-code': 'moonshotai/kimi-k2.7-code',
+  'deepseek-v4-pro': 'deepseek-v4-pro',
+  'deepseek-v4-flash': 'deepseek-v4-flash',
+  'kimi-k2.7-code': 'kimi-k2.7-code',
 };
 
 // Customer-facing aliases (USD -> INR prices per 1M tokens)
@@ -48,7 +48,7 @@ export const FALLBACK_CHAIN = {
 };
 
 /**
- * Resolve a public model alias (or internal model id) to an internal OpenRouter model id.
+ * Resolve a public model alias (or internal model id) to a model id.
  */
 export function resolveModelAlias(alias) {
   if (!alias) return PRICING[DEFAULT_MODEL_ALIAS].internal;

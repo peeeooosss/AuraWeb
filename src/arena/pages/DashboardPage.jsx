@@ -70,7 +70,7 @@ export default function DashboardPage() {
         <h2 className="w-full font-syne text-[16px] font-medium leading-normal text-[#191919]">
           Actions
         </h2>
-        <div className="mt-[18px] flex flex-wrap items-start gap-4">
+        <div className="mt-[18px] flex flex-wrap justify-center gap-4">
           <Link
             to="/create"
             className="group/action relative z-50 block w-[304.5px] max-w-full cursor-pointer overflow-visible rounded-[10.8px] bg-white outline-none focus-visible:ring-2 focus-visible:ring-[#7A5AF8] focus-visible:ring-offset-4"
@@ -81,7 +81,7 @@ export default function DashboardPage() {
               alt=""
               className="relative z-10 h-[90px] w-[304.5px] max-w-full rounded-[10.8px] bg-white object-cover"
             />
-            <span className="absolute inset-0 z-20 flex items-center justify-center text-center font-syne text-sm font-medium text-[#191919]">
+            <span className="absolute inset-0 z-20 flex items-center justify-center text-center font-syne text-sm font-medium text-[#7A5AF8]">
               Create Presentation
             </span>
           </Link>

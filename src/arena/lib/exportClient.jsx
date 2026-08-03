@@ -51,7 +51,7 @@ export async function exportSlides({ slides, format = 'pptx', onProgress }) {
       const canvas = await html2canvas(els[i], {
         width: W,
         height: H,
-        scale: 1,
+        scale: 2,
         useCORS: true,
         backgroundColor: '#ffffff',
         windowWidth: W,
@@ -66,9 +66,13 @@ export async function exportSlides({ slides, format = 'pptx', onProgress }) {
       const pptx = new PptxGenJS();
       pptx.defineLayout({ name: 'WIDE', width: 13.333, height: 7.5 });
       pptx.layout = 'WIDE';
-      dataUrls.forEach((url) => {
+      dataUrls.forEach((url, i) => {
         const slide = pptx.addSlide();
         slide.addImage({ data: url, x: 0, y: 0, w: 13.333, h: 7.5 });
+        const note = (list[i] && list[i].speaker_note) || '';
+        if (note) {
+          slide.addNotes(note);
+        }
       });
       return await pptx.write('blob');
     }

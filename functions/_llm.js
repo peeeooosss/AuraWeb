@@ -1,23 +1,23 @@
 import { resolveModelAlias, FALLBACK_CHAIN } from './_models';
 
-const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
-const DEFAULT_MODEL = 'deepseek/deepseek-v4-pro';
-const DEFAULT_FALLBACK_MODEL = 'deepseek/deepseek-v4-flash';
+const ZENGO_URL = 'https://opencode.ai/zen/go/v1/chat/completions';
+const DEFAULT_MODEL = 'deepseek-v4-pro';
+const DEFAULT_FALLBACK_MODEL = 'deepseek-v4-flash';
 
 export function llmConfig(env) {
-  const apiKey = env?.OPENROUTER_API_KEY;
-  const model = env?.OPENROUTER_MODEL || DEFAULT_MODEL;
+  const apiKey = env?.ZENGO_API_KEY;
+  const model = env?.ZENGO_MODEL || DEFAULT_MODEL;
   return { apiKey, model };
 }
 
 export function assertKey(env) {
   const { apiKey } = llmConfig(env);
   if (!apiKey) {
-    throw new Error('No LLM API key configured (set OPENROUTER_API_KEY)');
+    throw new Error('No LLM API key configured (set ZENGO_API_KEY)');
   }
 }
 
-function openRouterBody(opts) {
+function buildBody(opts) {
   const body = {
     model: opts.model,
     messages: opts.messages,
@@ -34,29 +34,27 @@ function openRouterBody(opts) {
   return body;
 }
 
-async function callOpenRouter(env, opts) {
+async function callZenGo(env, opts) {
   const { apiKey } = llmConfig(env);
-  if (!apiKey) throw new Error('OPENROUTER_API_KEY is not configured');
-  const body = openRouterBody(opts);
-  const res = await fetch(OPENROUTER_URL, {
+  if (!apiKey) throw new Error('ZENGO_API_KEY is not configured');
+  const body = buildBody(opts);
+  const res = await fetch(ZENGO_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${apiKey}`,
-      'HTTP-Referer': 'https://arena.tryauraai.in',
-      'X-Title': 'Aura AI',
     },
     body: JSON.stringify(body),
   });
   if (!res.ok) {
     const text = await res.text().catch(() => '');
-    throw new Error(`OpenRouter ${res.status}: ${text.slice(0, 200)}`);
+    throw new Error(`ZenGo ${res.status}: ${text.slice(0, 200)}`);
   }
   return res;
 }
 
 function buildModelChain(requestedModel, env) {
-  const primary = resolveModelAlias(requestedModel || env?.OPENROUTER_MODEL || DEFAULT_MODEL);
+  const primary = resolveModelAlias(requestedModel || env?.ZENGO_MODEL || DEFAULT_MODEL);
   const chain = [primary];
   if (FALLBACK_CHAIN[primary]) chain.push(FALLBACK_CHAIN[primary]);
   return [...new Set(chain)];
@@ -68,8 +66,8 @@ export async function llmChat(env, opts) {
   let lastErr;
   for (const model of models) {
     try {
-      const res = await callOpenRouter(env, { ...opts, model });
-      return { provider: 'openrouter', res, model, usage: null };
+      const res = await callZenGo(env, { ...opts, model });
+      return { provider: 'zengo', res, model, usage: null };
     } catch (err) {
       lastErr = err;
     }
@@ -77,16 +75,29 @@ export async function llmChat(env, opts) {
   throw new Error(`LLM request failed: ${lastErr?.message || 'unknown error'}`);
 }
 
+function extractContent(data) {
+  const msg = data.choices?.[0]?.message;
+  if (!msg) return '';
+  // Reasoning models (deepseek-v4-pro) put the final answer in content,
+  // but when max_tokens is tight, content may be empty and reasoning_content
+  // contains the generated JSON. Prefer content, fall back to reasoning_content.
+  const content = msg.content;
+  if (content && content.trim()) return content;
+  const reasoning = msg.reasoning_content;
+  if (reasoning && reasoning.trim()) return reasoning;
+  return '';
+}
+
 export async function llmJson(env, opts) {
   const { res } = await llmChat(env, { ...opts, stream: false, jsonMode: true });
   const data = await res.json();
-  return data.choices?.[0]?.message?.content || '';
+  return extractContent(data) || '';
 }
 
 export async function llmStructured(env, opts) {
   const { res } = await llmChat(env, { ...opts, stream: false, responseFormat: opts.responseFormat });
   const data = await res.json();
-  const content = data.choices?.[0]?.message?.content || '{}';
+  const content = extractContent(data) || '{}';
   try {
     return JSON.parse(content);
   } catch {
@@ -97,7 +108,7 @@ export async function llmStructured(env, opts) {
 export async function llmText(env, opts) {
   const { res } = await llmChat(env, { ...opts, stream: false });
   const data = await res.json();
-  return data.choices?.[0]?.message?.content || '';
+  return extractContent(data) || '';
 }
 
 /**
@@ -108,7 +119,7 @@ export async function llmComplete(env, opts) {
   const { res, model } = await llmChat(env, { ...opts, stream: false });
   const data = await res.json();
   return {
-    content: data.choices?.[0]?.message?.content || '',
+    content: extractContent(data) || '',
     model,
     usage: data.usage || { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
   };
@@ -116,7 +127,7 @@ export async function llmComplete(env, opts) {
 
 /**
  * Wrap a streaming response in a transform stream so we can both forward SSE
- * frames and capture the usage object OpenRouter emits in the final frame.
+ * frames and capture the usage object the API emits in the final frame.
  */
 export function streamWithUsage(res, onDelta) {
   const { readable, writable } = new TransformStream();

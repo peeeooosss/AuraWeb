@@ -148,30 +148,56 @@ export async function getCredits() {
   return res.json();
 }
 
+// Non-PPT endpoints live under /api/v1 (not /api/v1/ppt)
+async function directRequest(method, path, body) {
+  const opts = { method, headers: await authHeaders() };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(path, opts);
+  return handleResponse(res);
+}
+
 export async function getApiKeys() {
-  return request('GET', '/keys');
+  return directRequest('GET', '/api/v1/keys');
 }
 
 export async function createApiKey(data) {
-  return request('POST', '/keys', data);
+  return directRequest('POST', '/api/v1/keys', data);
 }
 
 export async function deleteApiKey(id) {
-  return request('DELETE', `/keys/${id}`);
+  return directRequest('DELETE', `/api/v1/keys/${id}`);
 }
 
-export async function getPlans() {
-  return request('GET', '/plans');
-}
-
-export async function getBilling() {
-  return request('GET', '/billing');
+export async function getUsageSummary(days = 30) {
+  return directRequest('GET', `/api/v1/usage?days=${days}`);
 }
 
 export async function createBillingOrder(data) {
-  return request('POST', '/billing/create-plan-order', data);
+  return directRequest('POST', '/api/v1/billing/create-plan-order', data);
 }
 
 export async function verifyBilling(data) {
-  return request('POST', '/billing/verify-plan', data);
+  return directRequest('POST', '/api/v1/billing/verify-plan', data);
+}
+
+// ---- Wallet (B2B pay-as-you-go) ----
+
+export async function createWalletTopupOrder(keyId, amountInr) {
+  return directRequest('POST', '/api/v1/wallet/create-topup-order', {
+    key_id: keyId,
+    amount: Number(amountInr),
+  });
+}
+
+export async function verifyWalletTopup({ keyId, razorpay_order_id, razorpay_payment_id, razorpay_signature }) {
+  return directRequest('POST', '/api/v1/wallet/verify-topup', {
+    key_id: keyId,
+    razorpay_order_id,
+    razorpay_payment_id,
+    razorpay_signature,
+  });
+}
+
+export async function getWalletTopupHistory() {
+  return directRequest('GET', '/api/v1/wallet/history');
 }

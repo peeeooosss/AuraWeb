@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import {
   Download, FileText, Loader, AlertCircle, ChevronLeft, ChevronRight,
-  Play, X, Sparkles,
+  Play, X, Sparkles, MessageSquare,
 } from 'lucide-react';
 import SlideRenderer from '../components/SlideRenderer';
 import { exportSlides, triggerDownload } from '../lib/exportClient.jsx';
@@ -11,7 +11,9 @@ import { getAccessToken } from '../lib/auth';
 
 function FullscreenPresenter({ slides, currentIndex, onClose }) {
   const [idx, setIdx] = useState(currentIndex);
+  const [showNotes, setShowNotes] = useState(false);
   const slide = slides[idx];
+  const speakerNote = slide?.speaker_note || '';
 
   const goNext = useCallback(() => { if (idx < slides.length - 1) setIdx(idx + 1); }, [idx, slides.length]);
   const goPrev = useCallback(() => { if (idx > 0) setIdx(idx - 1); }, [idx]);
@@ -21,6 +23,7 @@ function FullscreenPresenter({ slides, currentIndex, onClose }) {
       if (e.key === 'ArrowRight' || e.key === 'ArrowDown') goNext();
       if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') goPrev();
       if (e.key === 'Escape') onClose();
+      if (e.key === 'n' || e.key === 'N') setShowNotes((v) => !v);
     }
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
@@ -35,8 +38,17 @@ function FullscreenPresenter({ slides, currentIndex, onClose }) {
           Slide {idx + 1} of {slides.length}
         </span>
         <div className="flex items-center gap-3">
+          {speakerNote && (
+            <button
+              onClick={() => setShowNotes(!showNotes)}
+              className={`p-1.5 rounded-lg transition-colors ${showNotes ? 'bg-purple-600 text-white' : 'hover:bg-white/10 text-gray-400'}`}
+              title="Toggle speaker notes (N)"
+            >
+              <MessageSquare size={16} />
+            </button>
+          )}
           <span className="text-xs text-gray-500">
-            ← → arrow keys &nbsp;|&nbsp; Esc to exit
+            ← → arrow keys &nbsp;|&nbsp; N notes &nbsp;|&nbsp; Esc to exit
           </span>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10 text-gray-400">
             <X size={18} />
@@ -49,6 +61,15 @@ function FullscreenPresenter({ slides, currentIndex, onClose }) {
           <SlideRenderer slide={slide} index={idx} total={slides.length} />
         </div>
       </div>
+
+      {showNotes && speakerNote && (
+        <div className="px-6 py-4 bg-gray-900 border-t border-gray-700">
+          <div className="max-w-5xl mx-auto">
+            <p className="text-sm text-gray-300 leading-relaxed font-medium">Speaker Notes</p>
+            <p className="text-sm text-gray-400 leading-relaxed mt-1">{speakerNote}</p>
+          </div>
+        </div>
+      )}
 
       <div className="flex items-center justify-center gap-4 py-4 px-6 bg-black/50 backdrop-blur">
         <button
@@ -173,6 +194,7 @@ export default function PresentationPage() {
             setPresentation(d.presentation);
             setStreaming(false);
             setStreamStatus('');
+            window.dispatchEvent(new CustomEvent('credits:updated'));
             es.close();
           }
         } else if (d.type === 'error') {

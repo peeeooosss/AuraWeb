@@ -146,3 +146,38 @@ export function makeTitleSlideSlides(nSlides) {
     content: '',
   }));
 }
+
+export async function fanOutWebhooks(env, userId, event) {
+  try {
+    const list = await env.ARENA_KV.list({ prefix: `webhook:${userId}:` });
+    const targets = [];
+    for (const key of list.keys) {
+      const raw = await env.ARENA_KV.get(key.name);
+      if (raw) {
+        try {
+          const sub = JSON.parse(raw);
+          if (Array.isArray(sub.events) && sub.events.includes(event.type) && sub.url) {
+            targets.push(sub);
+          }
+        } catch {}
+      }
+    }
+
+    const payload = JSON.stringify(event);
+    await Promise.allSettled(
+      targets.map((sub) =>
+        fetch(sub.url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(sub.secret ? { Authorization: `Bearer ${sub.secret}` } : {}),
+          },
+          body: payload,
+          signal: AbortSignal.timeout(5000),
+        }).catch(() => {})
+      ),
+    );
+  } catch {
+    // webhook fan-out is best-effort
+  }
+}

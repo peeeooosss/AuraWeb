@@ -2,8 +2,16 @@ import React, { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ChevronRight, FileUp, X, Loader2 } from 'lucide-react';
 import { useGenerateFlow } from '../hooks/useGenerateFlow';
+import { authFetch } from '../lib/api';
 
-const LANGUAGE_OPTIONS = ['English', 'Spanish', 'French', 'German', 'Japanese', 'Chinese', 'Hindi', 'Arabic'];
+const LANGUAGE_OPTIONS = [
+  'Auto-detect', 'English', 'Spanish', 'French', 'German', 'Italian', 'Portuguese', 'Dutch',
+  'Russian', 'Japanese', 'Chinese (Simplified)', 'Chinese (Traditional)', 'Korean', 'Hindi',
+  'Arabic', 'Bengali', 'Turkish', 'Vietnamese', 'Thai', 'Indonesian', 'Malay', 'Tamil',
+  'Telugu', 'Marathi', 'Urdu', 'Polish', 'Ukrainian', 'Czech', 'Swedish', 'Norwegian',
+  'Danish', 'Finnish', 'Greek', 'Hungarian', 'Romanian', 'Bulgarian', 'Croatian', 'Serbian',
+  'Slovak', 'Slovenian', 'Hebrew', 'Persian', 'Swahili', 'Filipino', 'Afrikaans',
+];
 
 const TONE_OPTIONS = [
   { id: 'default', label: 'Default' },
@@ -43,6 +51,7 @@ export default function CreatePage() {
   const [template, setTemplate] = useState('general');
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [instructions, setInstructions] = useState('');
+  const [webSearch, setWebSearch] = useState(true);
 
   const handleGenerate = async () => {
     if (!prompt.trim() && files.length === 0) return;
@@ -54,8 +63,23 @@ export default function CreatePage() {
       tone,
       verbosity,
       instructions,
+      web_search: webSearch,
     });
     if (result?.id) {
+      // Upload any attached files
+      if (files.length > 0) {
+        try {
+          const formData = new FormData();
+          formData.append('presentation_id', result.id);
+          files.forEach((f) => formData.append('files', f));
+          await authFetch('/api/v1/ppt/files/upload', {
+            method: 'POST',
+            body: formData,
+          });
+        } catch {
+          // file upload is best-effort
+        }
+      }
       navigate(`/outline?id=${result.id}`);
     }
   };
@@ -165,6 +189,26 @@ export default function CreatePage() {
                     {v.label}
                   </button>
                 ))}
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-[#191919] mb-1.5 block">Web Research</label>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setWebSearch(!webSearch)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    webSearch ? 'bg-[#7A5AF8]' : 'bg-gray-200'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      webSearch ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+                <span className="text-xs text-[#808080]">
+                  Search the web for real facts and data
+                </span>
               </div>
             </div>
             <div>

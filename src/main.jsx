@@ -1,6 +1,6 @@
 import React, { lazy, Suspense } from 'react';
 import ReactDOM from 'react-dom/client';
-import { BrowserRouter } from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import ErrorBoundary from '@/components/ErrorBoundary';
 
 import './tablely/index.css';
@@ -39,23 +39,23 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <ErrorBoundary>
       <Suspense fallback={<FullScreenLoader />}>
-        {subdomain === 'tablely' ? (
-          <BrowserRouter>
-            <div id="tablely-root">
-              <TablelyApp />
-            </div>
-          </BrowserRouter>
-        ) : subdomain === 'arena' ? (
-          <BrowserRouter>
-            <ArenaApp />
-          </BrowserRouter>
-        ) : subdomain === 'tryauraai' ? (
-          <BrowserRouter>
-            <TryAuraAIApp />
-          </BrowserRouter>
-        ) : (
-          <DirectoryHome />
-        )}
+        <BrowserRouter>
+          <Routes>
+            {subdomain === 'tablely' ? (
+              <Route path="/*" element={
+                <div id="tablely-root">
+                  <TablelyApp />
+                </div>
+              } />
+            ) : subdomain === 'arena' ? (
+              <Route path="/*" element={<ArenaApp />} />
+            ) : subdomain === 'tryauraai' ? (
+              <Route path="/*" element={<TryAuraAIApp />} />
+            ) : (
+              <Route path="/*" element={<DirectoryHome />} />
+            )}
+          </Routes>
+        </BrowserRouter>
       </Suspense>
     </ErrorBoundary>
   </React.StrictMode>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Loader2, Sparkles } from 'lucide-react';
+import { Loader2, Sparkles } from 'lucide-react';
 import TemplatePicker from '../components/outline/TemplatePicker';
 import OutlineContent from '../components/outline/OutlineContent';
 import GenerateButton from '../components/outline/GenerateButton';
@@ -89,30 +89,6 @@ export default function OutlinePage() {
     <div className="min-h-screen bg-white flex">
       {/* Main Content */}
       <div className="flex-1 min-w-0 pb-24">
-        {/* Header */}
-        <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-[#EDEEEF] px-6 py-4">
-          <div className="max-w-4xl mx-auto flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <button onClick={handleGoBack} className="p-1.5 rounded-lg hover:bg-gray-100 text-[#808080]">
-                <ArrowLeft size={18} />
-              </button>
-              <div>
-                <h1 className="font-syne text-lg font-semibold text-[#101323]">
-                  {isStreaming ? status || 'Generating Outline' : 'Edit Outline'}
-                </h1>
-                <p className="text-xs text-[#808080] mt-0.5">
-                  {isStreaming ? 'AI is writing your presentation...' : `${outlines.length} slides · ${selectedTemplate} template`}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="px-2.5 py-1 rounded-full bg-[#F3F0FF] text-[10px] font-syne font-medium text-[#7A5AF8]">
-                {selectedTemplate || 'general'}
-              </span>
-            </div>
-          </div>
-        </header>
-
         {/* Outline content */}
         <div className="max-w-4xl mx-auto px-6 py-6">
           {streamError && (

@@ -28,7 +28,7 @@ export function useGenerateFlow() {
           verbosity: data.verbosity || 'standard',
           instructions: data.instructions || '',
           include_title_slide: true,
-          web_search: false,
+          web_search: !!data.web_search,
         }),
       });
 

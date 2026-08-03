@@ -82,6 +82,7 @@ export function useOutlineStreaming(presentationId, enabled) {
         setIsStreaming(false);
         setIsComplete(true);
         setStatus('Outline ready');
+        window.dispatchEvent(new CustomEvent('credits:updated'));
         closeES();
       } else if (data.type === 'closing') {
         setIsStreaming(false);
