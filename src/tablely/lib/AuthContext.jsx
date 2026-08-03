@@ -32,54 +32,71 @@ export function AuthProvider({ children }) {
   }, []);
 
   async function hydrateUser(authUser) {
-    const metadata = authUser.user_metadata || {};
-    const role = metadata.role || "owner";
-    let profileData = null;
-    let restaurantId = metadata.restaurant_id;
-    let onboardingComplete = false;
+    try {
+      const metadata = authUser.user_metadata || {};
+      const role = metadata.role || "owner";
+      let profileData = null;
+      let restaurantId = metadata.restaurant_id;
+      let onboardingComplete = false;
 
-    if (role === "staff") {
-      const { data } = await supabase
-        .from("staff_profiles")
-        .select("*")
-        .eq("user_id", authUser.id)
-        .single();
-      profileData = data;
-    } else {
-      // For owners: look up restaurant by owner_id
-      const { data } = await supabase
-        .from("restaurants")
-        .select("*")
-        .eq("owner_id", authUser.id)
-        .single();
-      if (data) {
+      if (role === "staff") {
+        const { data } = await supabase
+          .from("staff_profiles")
+          .select("*")
+          .eq("user_id", authUser.id)
+          .single();
         profileData = data;
-        restaurantId = data.id;
-        onboardingComplete = data.onboarding_complete || false;
+      } else {
+        const { data } = await supabase
+          .from("restaurants")
+          .select("*")
+          .eq("owner_id", authUser.id)
+          .single();
+        if (data) {
+          profileData = data;
+          restaurantId = data.id;
+          onboardingComplete = data.onboarding_complete || false;
+        }
       }
-    }
 
-    // Set user with the final resolved restaurantId — no intermediate state
-    setUser({
-      id: authUser.id,
-      email: authUser.email,
-      role,
-      restaurantId,
-      onboardingComplete,
-      displayName: metadata.display_name,
-      staffRole: metadata.staff_role,
-    });
-    setProfile(profileData);
-    setLoading(false);
+      setUser({
+        id: authUser.id,
+        email: authUser.email,
+        role,
+        restaurantId,
+        onboardingComplete,
+        displayName: metadata.display_name,
+        staffRole: metadata.staff_role,
+      });
+      setProfile(profileData);
+    } catch (e) {
+      console.error("hydrateUser failed:", e);
+      setUser({
+        id: authUser.id,
+        email: authUser.email,
+        role: authUser.user_metadata?.role || "owner",
+        restaurantId: authUser.user_metadata?.restaurant_id,
+        onboardingComplete: false,
+        displayName: authUser.user_metadata?.display_name,
+        staffRole: authUser.user_metadata?.staff_role,
+      });
+    } finally {
+      setLoading(false);
+    }
   }
 
   const signInAsOwner = useCallback(async (email, password) => {
+    setLoading(true);
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw error;
+    if (error) {
+      setLoading(false);
+      throw error;
+    }
     return data;
   }, []);
 
   const signUpAsOwner = useCallback(async (email, password, restaurantId) => {
+    setLoading(true);
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -87,7 +104,10 @@ export function AuthProvider({ children }) {
         data: { role: "owner", restaurant_id: restaurantId },
       },
     });
-    if (error) throw error;
+    if (error) {
+      setLoading(false);
+      throw error;
+    }
     return data;
   }, []);
 
