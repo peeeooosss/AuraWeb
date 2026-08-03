@@ -80,16 +80,16 @@ export default function CustomerMenu({ embedded, tableId: propTableId }) {
   const canSecretMenu = hasFeature(tier, "vip_secret_menus");
   const canFastDelivery = hasFeature(restaurant?.tier || "starter", "fast_delivery");
 
-  const fastDeliveryItems = useMemo(() => {
-    if (!canFastDelivery) return [];
-    return allItems.filter((i) => i.fastDelivery);
-  }, [allItems, canFastDelivery]);
-
   const allItems = useMemo(() => MENU.flatMap((c) => c.items.map((i) => ({
     ...i,
     categoryId: c.id,
     categoryName: c.category,
   }))), [MENU]);
+
+  const fastDeliveryItems = useMemo(() => {
+    if (!canFastDelivery) return [];
+    return allItems.filter((i) => i.fastDelivery);
+  }, [allItems, canFastDelivery]);
 
   if (menuLoading) {
     return (
