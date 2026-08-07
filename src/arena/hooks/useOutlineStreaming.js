@@ -21,6 +21,16 @@ export function useOutlineStreaming(presentationId, enabled) {
     esRef.current = null;
   }, []);
 
+  const connectionTimerRef = useRef(null);
+  const dataReceivedRef = useRef(false);
+
+  const clearConnectionTimer = useCallback(() => {
+    if (connectionTimerRef.current) {
+      clearTimeout(connectionTimerRef.current);
+      connectionTimerRef.current = null;
+    }
+  }, []);
+
   const scheduleRetry = useCallback((presentationId, enabled, reason) => {
     if (closedRef.current || retryCountRef.current >= MAX_RETRIES) return false;
     retryCountRef.current += 1;
@@ -35,8 +45,10 @@ export function useOutlineStreaming(presentationId, enabled) {
 
   const openStream = useCallback(async (presentationId) => {
     closeES();
+    clearConnectionTimer();
     setStreamError(null);
     accumulatedRef.current = '';
+    dataReceivedRef.current = false;
 
     const token = await getAccessToken();
     if (!token) {
@@ -49,7 +61,15 @@ export function useOutlineStreaming(presentationId, enabled) {
     const es = new EventSource(url);
     esRef.current = es;
 
+    connectionTimerRef.current = setTimeout(() => {
+      closeES();
+      scheduleRetry(presentationId, true, 'connection timeout');
+    }, 15000);
+
     es.addEventListener('response', (event) => {
+      clearConnectionTimer();
+      dataReceivedRef.current = true;
+
       let data;
       try { data = JSON.parse(event.data); } catch { return; }
 
@@ -73,7 +93,7 @@ export function useOutlineStreaming(presentationId, enabled) {
           const slides = data.presentation?.outlines?.slides;
           if (slides) {
             setOutlines(slides.map((s, i) => ({
-              _key: `slide-${i}-${Buffer.from(s.content || '').toString('base64').slice(0, 6)}`,
+              _key: `s-${i}`,
               content: s.content || '',
               title: s.title || '',
             })));
@@ -84,11 +104,13 @@ export function useOutlineStreaming(presentationId, enabled) {
         setStatus('Outline ready');
         window.dispatchEvent(new CustomEvent('credits:updated'));
         closeES();
+        clearConnectionTimer();
       } else if (data.type === 'closing') {
         setIsStreaming(false);
         setIsComplete(true);
         setStatus('Outline ready');
         closeES();
+        clearConnectionTimer();
       } else if (data.type === 'error') {
         setStreamError(data.detail || 'Stream error');
         scheduleRetry(presentationId, true, data.detail || 'server error');
@@ -96,9 +118,19 @@ export function useOutlineStreaming(presentationId, enabled) {
     });
 
     es.onerror = () => {
-      if (es.readyState === EventSource.CLOSED) {
-        setIsStreaming(false);
-        setIsComplete(true);
+      clearConnectionTimer();
+      const readyState = es.readyState;
+      if (readyState === EventSource.CLOSED) {
+        if (dataReceivedRef.current) {
+          setIsStreaming(false);
+          setIsComplete(true);
+        } else {
+          const retried = scheduleRetry(presentationId, true, 'connection closed');
+          if (!retried) {
+            setIsStreaming(false);
+            setStreamError('Connection lost. Please try again.');
+          }
+        }
       } else {
         const retried = scheduleRetry(presentationId, true, 'connection lost');
         if (!retried) {
@@ -107,7 +139,7 @@ export function useOutlineStreaming(presentationId, enabled) {
         }
       }
     };
-  }, [closeES, scheduleRetry]);
+  }, [closeES, scheduleRetry, clearConnectionTimer]);
 
   useEffect(() => {
     closedRef.current = false;
@@ -128,11 +160,13 @@ export function useOutlineStreaming(presentationId, enabled) {
     return () => {
       closedRef.current = true;
       closeES();
+      clearConnectionTimer();
     };
   }, [presentationId, enabled, openStream, closeES]);
 
   const reset = useCallback(() => {
     closeES();
+    clearConnectionTimer();
     setOutlines([]);
     setStatus('');
     setIsStreaming(false);
@@ -141,7 +175,8 @@ export function useOutlineStreaming(presentationId, enabled) {
     accumulatedRef.current = '';
     retryCountRef.current = 0;
     closedRef.current = true;
-  }, [closeES]);
+    dataReceivedRef.current = false;
+  }, [closeES, clearConnectionTimer]);
 
   return { outlines, setOutlines, status, isStreaming, isComplete, streamError, reset };
 }

@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 const navLinks = [
   { name: 'Our products', href: '#tools' },
   { name: 'Voice AI Receptionist', href: '#voice' },
+  { name: 'CYPHR', href: '#cyphr' },
   { name: 'Custom Agency', href: '#agency' },
   { name: 'Aura Labs', href: '#labs' },
   { name: 'Our Work', href: '#testimonials' },

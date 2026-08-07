@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import APIKeysPage from './APIKeysPage';
 import { useNavigate, Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Copy, Plus, Trash, Eye, EyeOff, Loader2, CreditCard, Shield, Zap, Settings as SettingsIcon, User, Key, Crown, Receipt, Wifi, WifiOff, ExternalLink } from 'lucide-react';
@@ -210,148 +211,6 @@ function ModelsTab() {
           </div>
         </div>
       </div>
-    </div>
-  );
-}
-
-function ApiKeysTab() {
-  const [keys, setKeys] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [creating, setCreating] = useState(false);
-  const [newKeyName, setNewKeyName] = useState('');
-
-  const loadKeys = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await authFetch('/api/v1/keys').then(r => r.json());
-      setKeys(data.items || []);
-    } catch (e) {
-      console.error('Failed to load API keys:', e);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { loadKeys(); }, [loadKeys]);
-
-  const handleCreate = async () => {
-    if (!newKeyName.trim()) return;
-    setCreating(true);
-    try {
-      await authFetch('/api/v1/keys', {
-        method: 'POST',
-        body: JSON.stringify({ name: newKeyName.trim() }),
-      });
-      toast.success('API key created');
-      setNewKeyName('');
-      loadKeys();
-    } catch (e) {
-      toast.error(e.message || 'Failed to create API key');
-    } finally {
-      setCreating(false);
-    }
-  };
-
-  const handleDelete = async (id) => {
-    if (!confirm('Are you sure you want to revoke this API key?')) return;
-    try {
-      await authFetch(`/api/v1/keys/${id}`, { method: 'DELETE' });
-      toast.success('API key revoked');
-      loadKeys();
-    } catch (e) {
-      toast.error(e.message || 'Failed to revoke API key');
-    }
-  };
-
-  const handleCopy = (key) => {
-    navigator.clipboard.writeText(key);
-    toast.success('Copied to clipboard');
-  };
-
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h4 className="font-syne font-semibold text-sm text-[#191919]">API Keys</h4>
-        <div className="flex items-center gap-2">
-          <input
-            type="text"
-            value={newKeyName}
-            onChange={(e) => setNewKeyName(e.target.value)}
-            placeholder="Key name (e.g., 'Production API')"
-            className="px-3 py-1.5 rounded-lg border border-[#EDEEEF] bg-white text-sm text-[#191919] placeholder:text-[#808080] focus:outline-none focus:ring-2 focus:ring-[#7A5AF8]/20 focus:border-[#7A5AF8] w-48"
-          />
-          <button
-            onClick={handleCreate}
-            disabled={creating || !newKeyName.trim()}
-            className="px-3 py-1.5 rounded-lg bg-[#7A5AF8] text-white text-sm font-medium hover:bg-[#6B48EE] transition-colors disabled:opacity-50"
-          >
-            {creating ? 'Creating...' : <Plus className="h-3.5 w-3.5" />}
-          </button>
-        </div>
-      </div>
-
-      {loading ? (
-        <div className="flex items-center justify-center py-8 text-[#808080]">Loading...</div>
-      ) : keys.length === 0 ? (
-        <div className="rounded-xl border border-[#EDEEEF] bg-white p-8 text-center">
-          <Key className="w-10 h-10 mx-auto text-[#808080] mb-3" />
-          <h4 className="font-syne font-semibold text-sm text-[#191919] mb-1">No API Keys</h4>
-          <p className="text-sm text-[#808080] mb-4">Create an API key to access the API programmatically</p>
-          <button
-            onClick={() => setNewKeyName('My API Key')}
-            className="px-4 py-2 rounded-lg bg-[#7A5AF8] text-white text-sm font-medium hover:bg-[#6B48EE] transition-colors"
-          >
-            Create Your First Key
-          </button>
-        </div>
-      ) : (
-        <div className="rounded-xl border border-[#EDEEEF] bg-white overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-[#EDEEEF] bg-[#FAFBFC]">
-                  <th className="text-left px-4 py-3 text-xs font-medium text-[#808080] uppercase tracking-wider">Name</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-[#808080] uppercase tracking-wider">Prefix</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-[#808080] uppercase tracking-wider">Created</th>
-                  <th className="text-right px-4 py-3 text-xs font-medium text-[#808080] uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {keys.map(key => (
-                  <tr key={key.id} className="border-b border-[#EDEEEF] hover:bg-[#FAFBFC]">
-                    <td className="px-4 py-3">
-                      <div className="font-medium text-sm text-[#191919">{key.name}</div>
-                      <div className="text-xs text-[#808080] mt-0.5">{key.key_prefix}••••••••</div>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-[#667085] font-mono">{key.key_prefix}</td>
-                    <td className="px-4 py-3 text-sm text-[#667085]">
-                      {new Date(key.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => handleCopy(key.key_prefix + '••••••••')}
-                          className="p-1.5 hover:bg-[#F8F8FA] rounded-lg text-[#667085] transition-colors"
-                          title="Copy prefix"
-                        >
-                          <Copy className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(key.id)}
-                          className="p-1.5 hover:bg-red-50 rounded-lg text-red-500 transition-colors"
-                          title="Revoke"
-                        >
-                          <Trash className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -590,7 +449,7 @@ export default function SettingsPage() {
           <div className="p-6">
             {activeTab === 'profile' && <ProfileTab user={null} />}
             {activeTab === 'models' && <ModelsTab />}
-            {activeTab === 'api-keys' && <ApiKeysTab />}
+            {activeTab === 'api-keys' && <APIKeysPage inline />}
             {activeTab === 'plans' && <PlansTab credits={credits} />}
             {activeTab === 'billing' && <BillingTab />}
           </div>

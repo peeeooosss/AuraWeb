@@ -1,6 +1,6 @@
 import { json, jsonError, getPresentation, savePresentation, cleanJsonText, genId } from '../../../../_lib';
 import { requireUser } from '../../../../_auth';
-import { llmJson, llmStructured, assertKey } from '../../../../_llm';
+import { llmJson, assertKey } from '../../../../_llm';
 import { getTemplateData, getTemplateFonts } from '../../../../_templates';
 import { getTemplateSchema } from '../../../../_schema';
 import {
@@ -75,26 +75,24 @@ export const onRequestPost = async ({ request, env }) => {
 
   if (instruction || layouts.length > 0) {
     const layoutPrompt = layoutSelectionPrompt([outline], template, layouts, schemas);
-    const selSchema = {
-      type: 'object',
-      properties: { slides: { type: 'array', items: { type: 'integer', minimum: 0, maximum: layouts.length - 1 }, minItems: 1, maxItems: 1 } },
-      required: ['slides'],
-      additionalProperties: false,
-    };
     try {
-      const sel = await llmStructured(env, {
+      const raw = await llmJson(env, {
         messages: [
           { role: 'system', content: LAYOUT_SYSTEM },
           { role: 'user', content: layoutPrompt + (instruction ? `\n\nEdit instruction: ${instruction}` : '') },
         ],
         temperature: 0.3,
-        max_tokens: 200,
-        responseFormat: { type: 'json_schema', json_schema: { name: 'layout_sel', schema: selSchema, strict: false } },
+        max_tokens: 1000,
+        timeoutMs: 30000,
       });
-      const idx = sel?.slides?.[0];
-      if (typeof idx === 'number' && idx >= 0 && idx < layouts.length) {
-        layout = layouts[idx];
-        layoutSchema = schemaLookup[layout.id] || null;
+      const cleaned = cleanJsonText(raw);
+      if (cleaned) {
+        const sel = JSON.parse(cleaned);
+        const idx = sel?.slides?.[0];
+        if (typeof idx === 'number' && idx >= 0 && idx < layouts.length) {
+          layout = layouts[idx];
+          layoutSchema = schemaLookup[layout.id] || null;
+        }
       }
     } catch {
       // keep existing layout

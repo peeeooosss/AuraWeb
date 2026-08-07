@@ -38,6 +38,15 @@ const products = [
     emoji: '✨',
     color: 'from-purple-500 to-pink-600',
   },
+  {
+    tag: 'Artist Community',
+    name: 'CYPHR',
+    description: 'The underground dance battle platform. Live judging, tournament brackets, artist profiles, and a gig marketplace — all in real-time.',
+    url: 'https://joincyphr.vercel.app',
+    cta: 'Join the Battle',
+    emoji: '⚔️',
+    color: 'from-red-500 to-pink-600',
+  },
 ];
 
 export default function SaaSCards() {

@@ -379,6 +379,23 @@ export function buildFallbackSlides(outlines, template) {
 // Ported from Presenton's v2/schema.py and slide content generation logic.
 // ---------------------------------------------------------------------------
 
+function extractFieldLimits(schema, prefix = '') {
+  if (!schema || typeof schema !== 'object') return [];
+  const results = [];
+  if (schema.type === 'object' && schema.properties) {
+    for (const [key, prop] of Object.entries(schema.properties)) {
+      if (prop.type === 'string' && typeof prop.maxLength === 'number' && prop.maxLength > 5) {
+        const max = prop.maxLength;
+        const target = Math.max(5, max < 30 ? Math.floor(max * 0.8) : Math.floor(max * 0.7));
+        results.push({ name: prefix ? `${prefix}.${key}` : key, max, target });
+      } else if (prop.type === 'object' && prop.properties) {
+        results.push(...extractFieldLimits(prop, prefix ? `${prefix}.${key}` : key));
+      }
+    }
+  }
+  return results;
+}
+
 const CONTENT_TYPES = new Set(['text', 'image', 'text-list', 'table', 'chart', 'infographic']);
 
 export function hasContentFields(layout) {
@@ -425,7 +442,7 @@ export function layoutSelectionPrompt(outlines, template, layouts, schemas) {
   lines.push('   - Processes/workflows → Visual process layouts');
   lines.push('   - Comparisons/contrasts → Side-by-side layouts');
   lines.push('   - Data/metrics → Chart/graph layouts');
-  lines.push('   - Concepts/ideas → Image + text layouts');
+   lines.push('   - Concepts/ideas → Image + text layouts');
   lines.push('   - Key insights → Emphasis layouts');
   lines.push('2. **Visual variety**: Aim for diverse slide layouts across the presentation.');
   lines.push('   - Don\'t use same layout for multiple slides unless necessary.');
@@ -438,20 +455,25 @@ export function layoutSelectionPrompt(outlines, template, layouts, schemas) {
   lines.push('4. **Table Layout Selection Rules**:');
   lines.push('   - Must select table layout if the content contains table with text data.');
   lines.push('   - Must only select a layout with table if the table only contains text data.');
-  lines.push('5. **Graph Layout Selection Rules**:');
+   lines.push('5. **Graph Layout Selection Rules**:');
   lines.push('   - Must only select a layout with chart if the content contains table with numeric data.');
   lines.push('   - Identify how many columns are present in the table.');
   lines.push('   - Must select a layout that supports n-1 charts for n columns.');
   lines.push('   - Must prioritize layouts that support multiple charts.');
   lines.push('   - Don\'t select metrics layout for content containing table with numeric data.');
-  lines.push('   - For example, if content contains table with 3 columns, then select a layout that supports 2 charts.');
+   lines.push('   - For example, if content contains table with 3 columns, then select a layout that supports 2 charts.');
+   lines.push('6. **Mandatory visual requirements**:');
+   lines.push('   - Every slide must use a layout with at least one meaningful content image when an image-capable layout is available.');
+   lines.push('   - For numeric comparisons, trends, percentages, or statistics, prefer chart/bar layouts and preserve the data in the slide.');
+   lines.push('   - For text comparisons or categorical data, prefer table layouts when a table-capable layout is available.');
+   lines.push('   - Do not select a text-only layout when a suitable image, chart, bar, or table layout exists.');
   lines.push('');
   lines.push(`Select layout index for each of the ${outlines.length} slides based on what will best serve the presentation's goals.`);
   lines.push('');
   lines.push(`## Available Slide Layouts (${template} template)`);
   for (let i = 0; i < layouts.length; i++) {
     const l = layouts[i];
-    const desc = String(l.description || '').replace(/\s+/g, ' ').slice(0, 200);
+    const desc = String(l.description || '').replace(/\s+/g, ' ');
     lines.push(`### Slide Layout: ${i}`);
     lines.push(`- Name: ${l.id}`);
     lines.push(`- Description: ${desc}`);
@@ -467,7 +489,7 @@ export function layoutSelectionPrompt(outlines, template, layouts, schemas) {
   for (let i = 0; i < outlines.length; i++) {
     lines.push(`### Slide ${i + 1}`);
     lines.push(`Title: ${outlines[i].title || '(untitled)'}`);
-    lines.push(`Content: ${String(outlines[i].content || '').slice(0, 300)}`);
+    lines.push(`Content: ${outlines[i].content || ''}`);
     lines.push('');
   }
   lines.push('');
@@ -476,7 +498,8 @@ export function layoutSelectionPrompt(outlines, template, layouts, schemas) {
   lines.push(`- Exactly ${outlines.length} layout indices, one per slide, in order.`);
   lines.push('- The FIRST slide is the opening/title slide: prefer a layout whose name/description mentions cover, title, hero, or intro.');
   lines.push('- The LAST slide is the closing slide: prefer a clean closing/thank-you layout when available.');
-  lines.push('- Match content to layout: tables for tabular data, charts for numeric data, cards for lists of items, split text for stories.');
+   lines.push('- Match content to layout: tables for tabular data, charts for numeric data, cards for lists of items, split text for stories.');
+   lines.push('- Mandatory: use image-capable layouts for all slides where available; use charts/bars/tables whenever the topic or user requirements call for data visualization.');
   lines.push('- Vary layouts across slides; avoid repeating the same layout unless content genuinely matches.');
   lines.push('- Use layout INDEX numbers (0-based), not layout IDs.');
   lines.push('- Adjacent slide layouts should be different unless instructed/necessary otherwise.');
@@ -506,7 +529,10 @@ export function slideContentPrompt({ outline, layout, schema, slideNumber, total
   lines.push('- Never exceed max character limits; do not clip mid-sentence to fit—rephrase instead.');
   lines.push('- Do not use emojis or $schema fields.');
   lines.push('- Treat chart, layout, styling, positioning, and other visual instructions as production controls. Honor them through the selected schema, but never emit those instructions or meta-commentary as a title, body, label, table cell, or speaker note.');
-  lines.push('- Output fields must contain only audience-facing content and data. For chart fields, populate the requested labels, series, and values rather than text such as "create a bar chart" or "show this data as a graph".');
+   lines.push('- Output fields must contain only audience-facing content and data. For chart fields, populate the requested labels, series, and values rather than text such as "create a bar chart" or "show this data as a graph".');
+   lines.push('- Every image field must contain a specific, topic-relevant image prompt; never leave an image field empty or use a generic prompt.');
+   lines.push('- When the layout supports charts or tables and the outline contains quantitative data, populate real categories, labels, and values from the user content or supplied sources.');
+  lines.push('- Strictly use markdown to emphasize important points, by bolding or italicizing the part of text.');
   lines.push('');
   if (isTitle) {
     lines.push('This is the TITLE slide: the main heading field must be the presentation title; other fields should introduce the deck (subtitle, presenter, date, short overview).');
@@ -515,9 +541,9 @@ export function slideContentPrompt({ outline, layout, schema, slideNumber, total
     lines.push('This is the CLOSING slide: thank the audience and give the key takeaway. If there is a heading field, use it for a short closing message.');
   }
   if (tone) lines.push(`- Tone: ${tone}.`);
-  if (verbosity === 'concise') lines.push('- Be concise.');
-  else if (verbosity === 'text-heavy') lines.push('- Be detailed and text-heavy.');
-  else lines.push('- Standard verbosity.');
+  if (verbosity === 'concise') lines.push('# Verbosity Instructions:\nMake slide as concise as possible.');
+  else if (verbosity === 'text-heavy') lines.push('# Verbosity Instructions:\nMake slide as text-heavy as possible. Fill every text field close to its maxLength.');
+  else lines.push('# Verbosity Instructions:\nMake slide as standard as possible. Fill every text field close to its maxLength.');
   lines.push('');
   if (slideNumber) lines.push(`# Slide Number:\n${slideNumber}`);
   lines.push('');
@@ -526,9 +552,16 @@ export function slideContentPrompt({ outline, layout, schema, slideNumber, total
   lines.push(outline.content || '');
   lines.push('# SLIDE CONTENT: END');
   lines.push('');
+   lines.push('For each text field, write complete, meaningful content close to its maxLength. Do not use short placeholder phrases. Speaker note: 100-500 chars.');
   lines.push('# Output Fields:');
   if (schema) {
     lines.push(`- Follow this response schema exactly: ${JSON.stringify(schema)}`);
+    lines.push('');
+    lines.push('# Field Length Requirements (Fill each field to target minimum):');
+    const limits = extractFieldLimits(schema);
+    for (const lim of limits) {
+      lines.push(`- ${lim.name}: max ${lim.max} chars → target ${lim.target} chars minimum`);
+    }
   } else {
     lines.push('- Generate appropriate content fields for this layout.');
   }
@@ -563,6 +596,55 @@ export function prepareResponseSchema(jsonSchema) {
     schema.required.push('__speaker_note');
   }
   return schema;
+}
+
+/**
+ * Validate a slide content object against the prepared response schema.
+ * Walks the schema recursively and checks string/array lengths against
+ * minLength / maxLength / minItems / maxItems. Returns a list of human-readable
+ * violation strings (empty list means valid). Mirrors Presentron's schema
+ * validation feedback loop (validate_schema_max_loop_count).
+ */
+export function validateSlideContent(content, schema) {
+  const violations = [];
+  if (!content || typeof content !== 'object') return ['content is not an object'];
+  if (!schema || typeof schema !== 'object') return violations;
+
+  function checkNode(value, node, path) {
+    if (!node || typeof node !== 'object') return;
+    const type = node.type;
+    if (type === 'string' && typeof value === 'string') {
+      if (typeof node.minLength === 'number' && value.length < node.minLength) {
+        violations.push(`${path}: length ${value.length} < minLength ${node.minLength}`);
+      }
+      if (typeof node.maxLength === 'number' && value.length > node.maxLength) {
+        violations.push(`${path}: length ${value.length} > maxLength ${node.maxLength}`);
+      }
+      if (typeof node.maxLength === 'number' && node.maxLength > 40 && value.length < Math.floor(node.maxLength * 0.5)) {
+        violations.push(`${path}: ${value.length}/${node.maxLength} chars (${Math.round(value.length/node.maxLength*100)}%) — expand to ~${Math.floor(node.maxLength * 0.7)} chars minimum`);
+      }
+    } else if (type === 'array' && Array.isArray(value)) {
+      if (typeof node.minItems === 'number' && value.length < node.minItems) {
+        violations.push(`${path}: items ${value.length} < minItems ${node.minItems}`);
+      }
+      if (typeof node.maxItems === 'number' && value.length > node.maxItems) {
+        violations.push(`${path}: items ${value.length} > maxItems ${node.maxItems}`);
+      }
+      if (node.items && value.length) {
+        for (let i = 0; i < value.length; i++) checkNode(value[i], node.items, `${path}[${i}]`);
+      }
+    } else if (type === 'object' && value && typeof value === 'object') {
+      const props = node.properties || {};
+      for (const key of Object.keys(props)) {
+        if (value[key] !== undefined && value[key] !== null) {
+          checkNode(value[key], props[key], path ? `${path}.${key}` : key);
+        }
+      }
+    }
+  }
+
+  checkNode(content, schema, '');
+  return violations;
 }
 
 function deepClone(value) {

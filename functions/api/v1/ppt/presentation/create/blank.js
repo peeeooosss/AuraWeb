@@ -1,5 +1,5 @@
-import { json, jsonError, genId, nowIso } from '../../../../../_lib';
-import { requireUser } from '../../../../../_auth';
+import { json, jsonError, genId, nowIso, clamp } from '../../../../../_lib';
+import { requireAuth } from '../../../../../_auth';
 import { calculateCredits, assertCreditsAllowed, deductCredits } from '../../../../../_plans';
 
 const W = 1280;
@@ -38,41 +38,58 @@ function blankSlide() {
 }
 
 export const onRequestPost = async ({ request, env }) => {
-  let user;
+  let body = {};
   try {
-    user = await requireUser(request, env);
+    body = await request.json();
+  } catch {
+    // ignore
+  }
+
+  let auth;
+  try {
+    auth = await requireAuth(request, env);
   } catch (err) {
     return jsonError(err.message, err.status || 401);
   }
 
-  const requiredCredits = calculateCredits({ n_slides: 1 });
-  try {
-    await assertCreditsAllowed(user.id, env, requiredCredits);
-  } catch (err) {
-    return jsonError(err.message, err.status || 403, { 'X-Error-Code': err.code || '' });
+  const isB2B = !!(auth.apiKeyId || auth.id);
+
+  if (!isB2B) {
+    const requiredCredits = calculateCredits({ n_slides: 1 });
+    try {
+      await assertCreditsAllowed(auth.userId, env, requiredCredits);
+    } catch (err) {
+      return jsonError(err.message, err.status || 403, { 'X-Error-Code': err.code || '' });
+    }
   }
 
   const id = genId();
   const now = nowIso();
   const pres = {
     id,
-    title: 'Untitled',
-    content: '',
-    n_slides: 1,
-    language: 'English',
-    template: 'general',
-    tone: 'default',
-    verbosity: 'standard',
-    instructions: '',
-    status: 'slides_ready',
+    title: body.title || '',
+    content: body.content || '',
+    n_slides: clamp(Number(body.n_slides) || 1, 1, 40),
+    language: body.language || 'English',
+    template: body.template || 'general',
+    tone: body.tone || 'default',
+    verbosity: body.verbosity || 'standard',
+    instructions: String(body.instructions || ''),
+    web_search: !!body.web_search,
+    include_title_slide: body.include_title_slide !== false,
+    include_table_of_contents: !!body.include_table_of_contents,
+    status: 'created',
     created_at: now,
     updated_at: now,
     outlines: null,
-    slides: [blankSlide()],
+    slides: [],
   };
-  await env.ARENA_KV.put(`pres:${user.id}:${id}`, JSON.stringify(pres));
-  await deductCredits(user.id, requiredCredits, env);
-  return json({ ...pres, credits_used: requiredCredits }, 201);
+  await env.ARENA_KV.put(`pres:${auth.userId}:${id}`, JSON.stringify(pres));
+
+  if (!isB2B) {
+    await deductCredits(auth.userId, calculateCredits({ n_slides: 1 }), env);
+  }
+  return json({ ...pres }, 201);
 };
 
 export const onRequest = async (context) => {

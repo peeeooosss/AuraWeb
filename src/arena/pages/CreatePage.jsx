@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ChevronRight, FileUp, X, Loader2 } from 'lucide-react';
 import { useGenerateFlow } from '../hooks/useGenerateFlow';
 import { authFetch } from '../lib/api';
+import GenerationOverlay from '../components/GenerationOverlay';
 
 const LANGUAGE_OPTIONS = [
   'Auto-detect', 'English', 'Spanish', 'French', 'German', 'Italian', 'Portuguese', 'Dutch',
@@ -40,7 +41,7 @@ const TEMPLATES = [
 export default function CreatePage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { generate, generating, error } = useGenerateFlow();
+  const { generate, generating, step, status, chunks, error } = useGenerateFlow();
 
   const [prompt, setPrompt] = useState('');
   const [files, setFiles] = useState([]);
@@ -95,7 +96,16 @@ export default function CreatePage() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 pb-10">
+    <>
+      {generating && (
+        <GenerationOverlay
+          step={step}
+          status={status}
+          chunks={chunks}
+          estimatedSeconds={30}
+        />
+      )}
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 pb-10">
       <div className="rounded-2xl mt-8">
         {/* Config row */}
         <div className="flex flex-col gap-3 px-4 md:flex-row md:items-center md:justify-between pb-4 border-b border-[#EDEEEF]">
@@ -296,5 +306,6 @@ export default function CreatePage() {
         </div>
       </div>
     </div>
+    </>
   );
 }

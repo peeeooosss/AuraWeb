@@ -1,6 +1,7 @@
+import { jsonrepair } from 'jsonrepair';
 import { jsonError, getPresentation, savePresentation, sseStream, cleanJsonText, clamp, genId, fanOutWebhooks } from '../../../../../_lib';
-import { requireUser } from '../../../../../_auth';
-import { llmJson, llmStructured, assertKey } from '../../../../../_llm';
+import { requireAuth, logUsage } from '../../../../../_auth';
+import { llmChat, llmJson, assertKey } from '../../../../../_llm';
 import { getTemplateData, getTemplateFonts } from '../../../../../_templates';
 import { getTemplateSchema, componentContentKeys } from '../../../../../_schema';
 import {
@@ -9,6 +10,7 @@ import {
   slideContentPrompt,
   prepareResponseSchema,
   hydrateLayoutUi,
+  extractContentFields,
   buildSlideFromPlan,
   buildFallbackSlides,
 } from '../../../../../_slidegen';
@@ -20,54 +22,74 @@ const PARALLEL_BATCH = 5;
 const LAYOUT_SYSTEM =
   'You are an expert presentation layout designer. Respond with ONLY valid JSON matching the requested schema. Never wrap the response in code fences or add commentary.';
 const CONTENT_SYSTEM =
-  'You are an expert presentation copywriter. Respond with ONLY valid JSON. Never wrap the response in code fences or add commentary.';
+  'You are an expert presentation copywriter. Respond with ONLY valid JSON. Never wrap the response in code fences or add commentary. Every text field must be filled close to its maximum length — a sparse slide with short or empty text is unacceptable. Expand the outline content with relevant details, examples, statistics, and supporting context. Use the full space available in each field.';
 
-const LAYOUT_SELECTION_SCHEMA = {
-  type: 'object',
-  properties: {
-    slides: {
-      type: 'array',
-      items: { type: 'integer', minimum: 0 },
-      minItems: 1,
-    },
-  },
-  required: ['slides'],
-  additionalProperties: false,
-};
+function layoutContentTypes(layout) {
+  return new Set(extractContentFields(layout).map((field) => field.type));
+}
 
-async function selectLayoutsWithRetry(env, systemPrompt, userPrompt, maxSlides, maxAttempts = 3) {
-  const schema = {
-    ...LAYOUT_SELECTION_SCHEMA,
-    properties: {
-      slides: {
-        type: 'array',
-        items: { type: 'integer', minimum: 0, maximum: 100 },
-        minItems: maxSlides,
-        maxItems: maxSlides,
-      },
-    },
-    required: ['slides'],
-    additionalProperties: false,
+function visualNeed(outline, index, total) {
+  const text = `${outline?.title || ''} ${outline?.content || ''}`.toLowerCase();
+  if (/(table|tabular|matrix|breakdown|by segment|by category)/.test(text) && /\d|data|statistic|percentage|rate|revenue|growth|trend/.test(text)) {
+    return 'table';
+  }
+  if (/(chart|graph|bar|trend|over time|comparison|compare|percentage|percent|rate|revenue|growth|statistic|data)/.test(text) && /\d|data|statistic|percentage|rate|revenue|growth|trend/.test(text)) {
+    return 'chart';
+  }
+  return 'image';
+}
+
+function enforceVisualLayouts(layouts, selected, outlines) {
+  const used = new Set();
+  const findCandidate = (need, currentIndex) => {
+    const candidates = layouts
+      .map((layout, index) => ({ layout, index, types: layoutContentTypes(layout) }))
+      .filter(({ types }) => types.has(need));
+    return candidates.find(({ index }) => index !== currentIndex && !used.has(index)) ||
+      candidates.find(({ index }) => index !== currentIndex) ||
+      candidates[0] || null;
   };
 
+  return outlines.map((outline, slideIndex) => {
+    const currentIndex = selected[slideIndex];
+    const current = layouts[currentIndex];
+    const need = visualNeed(outline, slideIndex, outlines.length);
+    const currentTypes = current ? layoutContentTypes(current) : new Set();
+    let chosenIndex = currentIndex;
+
+    if (!currentTypes.has(need)) {
+      const candidate = findCandidate(need, currentIndex);
+      if (candidate) chosenIndex = candidate.index;
+    }
+
+    used.add(chosenIndex);
+    return chosenIndex;
+  });
+}
+async function selectLayoutsWithRetry(env, systemPrompt, userPrompt, maxSlides) {
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      const result = await llmStructured(env, {
+      const raw = await llmJson(env, {
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
         ],
         temperature: 0.4,
-        max_tokens: 4000,
-        responseFormat: {
-          type: 'json_schema',
-          json_schema: {
-            name: 'layout_selection',
-            schema,
-            strict: false,
-          },
-        },
+        max_tokens: 2000,
+        timeoutMs: 30000,
       });
+      const cleaned = cleanJsonText(raw);
+      if (!cleaned) continue;
+      let result;
+      try {
+        result = JSON.parse(cleaned);
+      } catch (e) {
+        try {
+          result = JSON.parse(jsonrepair(cleaned));
+        } catch (e2) {
+          continue;
+        }
+      }
       if (result && Array.isArray(result.slides) && result.slides.length === maxSlides) {
         return result.slides;
       }
@@ -84,58 +106,69 @@ async function generateSlideContent(env, { outline, layout, layoutSchema, index,
   let content = {};
   let speakerNote = '';
 
-  try {
-    let sourceContext = '';
-    if (sources && sources.length > 0) {
-      sourceContext = '\n\n# Reference Sources (use facts/numbers from these where relevant):\n' +
-        sources.map((s, i) => `[${i + 1}] ${s.title}: ${s.snippet}`).join('\n');
-    }
+  if (!responseSchema) {
+    return { content, speakerNote };
+  }
 
+  let sourceContext = '';
+  if (sources && sources.length > 0) {
+    sourceContext = '\n\n# Reference Sources (use facts/numbers from these where relevant):\n' +
+      sources.map((s, i) => `[${i + 1}] ${s.title}: ${s.snippet}`).join('\n');
+  }
+
+  const baseUserContent = slideContentPrompt({
+    outline,
+    layout,
+    schema: responseSchema,
+    slideNumber: index + 1,
+    totalSlides: total,
+    isTitle: index === 0,
+    isClosing: index === total - 1,
+    tone,
+    verbosity,
+    language,
+  }) + sourceContext;
+
+  try {
     const raw = await llmJson(env, {
       messages: [
         { role: 'system', content: CONTENT_SYSTEM },
-        {
-          role: 'user',
-          content: slideContentPrompt({
-            outline,
-            layout,
-            schema: responseSchema,
-            slideNumber: index + 1,
-            totalSlides: total,
-            isTitle: index === 0,
-            isClosing: index === total - 1,
-            tone,
-            verbosity,
-            language,
-          }) + sourceContext,
-        },
+        { role: 'user', content: baseUserContent },
       ],
-      temperature: 0.7,
+      temperature: 0.5,
       max_tokens: 8000,
+      timeoutMs: 45000,
     });
     const cleaned = cleanJsonText(raw);
     if (cleaned) {
-      const parsed = JSON.parse(cleaned) || {};
-      speakerNote = String(parsed.__speaker_note || '').trim();
-      delete parsed.__speaker_note;
-      content = parsed;
+      let parsed;
+      try {
+        parsed = JSON.parse(cleaned);
+      } catch (e) {
+        parsed = JSON.parse(jsonrepair(cleaned));
+      }
+      if (parsed) {
+        speakerNote = String(parsed.__speaker_note || '').trim();
+        delete parsed.__speaker_note;
+        content = parsed;
+      }
     }
   } catch {
-    // keep empty content so the template's default text is used
+    // Keep empty content/speakerNote fallback
   }
 
   return { content, speakerNote };
 }
 
 export const onRequestGet = async ({ params, env, request }) => {
-  let user;
+  let auth;
   try {
-    user = await requireUser(request, env);
+    auth = await requireAuth(request, env);
   } catch (err) {
     return jsonError(err.message, err.status || 401);
   }
 
-  const pres = await getPresentation(env, user.id, params.id);
+  const pres = await getPresentation(env, auth.userId, params.id);
   if (!pres) return jsonError('Presentation not found', 404);
 
   return sseStream(async ({ status, chunk, complete, error }) => {
@@ -180,36 +213,53 @@ export const onRequestGet = async ({ params, env, request }) => {
         pres.slides = slides;
         pres.n_slides = slides.length;
         pres.status = 'slides_ready';
-        await savePresentation(env, user.id, pres);
+await savePresentation(env, auth.userId, pres);
         return complete({ presentation: pres });
       }
 
-      // Stage 1: layout selection
-      await status(`Selecting layouts for ${total} slides...`);
-      let layoutIndices = [];
-      try {
-        const userPrompt = layoutSelectionPrompt(outlinesSliced, template, layouts, schemas);
-        const indices = await selectLayoutsWithRetry(env, LAYOUT_SYSTEM, userPrompt, total);
-        if (indices) {
-          layoutIndices = indices;
+      // Stage 1: layout selection — use pre-generated structure from prepare if available
+      let picked = [];
+      if (Array.isArray(pres.structure) && pres.structure.length === total) {
+        // Structure was pre-computed in prepare.js (matches Presenton's prepare step)
+        picked = pres.structure.map((idx) => {
+          if (typeof idx === 'number' && idx >= 0 && idx < layouts.length) return idx;
+          if (typeof idx === 'string') {
+            const found = layouts.findIndex((l) => l.id === idx);
+            return found >= 0 ? found : 0;
+          }
+          return 0;
+        });
+        console.log(`[presentation/stream] using pre-stored structure: [${picked.join(',')}]`);
+      } else {
+        await status(`Selecting layouts for ${total} slides...`);
+        let layoutIndices = [];
+        try {
+          const userPrompt = layoutSelectionPrompt(outlinesSliced, template, layouts, schemas);
+          const indices = await selectLayoutsWithRetry(env, LAYOUT_SYSTEM, userPrompt, total);
+          if (indices) {
+            layoutIndices = indices;
+          }
+        } catch {
+          // fall back to default layout below
         }
-      } catch {
-        // fall back to default layout below
+
+        for (let i = 0; i < total; i++) {
+          const idx = layoutIndices[i];
+          if (typeof idx === 'number' && idx >= 0 && idx < layouts.length) {
+            picked.push(idx);
+          } else if (typeof idx === 'string') {
+            const found = layouts.findIndex((l) => l.id === idx);
+            picked.push(found >= 0 ? found : 0);
+          } else {
+            picked.push(0);
+          }
+        }
       }
 
-      const defaultIdx = 0;
-      const picked = [];
-      for (let i = 0; i < total; i++) {
-        const idx = layoutIndices[i];
-        if (typeof idx === 'number' && idx >= 0 && idx < layouts.length) {
-          picked.push(idx);
-        } else if (typeof idx === 'string') {
-          const found = layouts.findIndex((l) => l.id === idx);
-          picked.push(found >= 0 ? found : defaultIdx);
-        } else {
-          picked.push(defaultIdx);
-        }
-      }
+      // The model selects the best layout, then this deterministic pass enforces
+      // the product visual contract instead of allowing text-only slides.
+      const visualLayoutIndices = enforceVisualLayouts(layouts, picked, outlinesSliced);
+      for (let i = 0; i < picked.length; i++) picked[i] = visualLayoutIndices[i];
 
       // Stage 2: parallel per-slide content generation
       const slides = Array.from({ length: total }, () => null);
@@ -306,10 +356,10 @@ export const onRequestGet = async ({ params, env, request }) => {
       pres.n_slides = validSlides.length;
       pres.status = 'slides_ready';
 
-      await savePresentation(env, user.id, pres);
+      await savePresentation(env, auth.userId, pres);
 
       complete({ presentation: pres });
-      fanOutWebhooks(env, user.id, { type: 'presentation.completed', presentation_id: pres.id, title: pres.title, n_slides: validSlides.length });
+      fanOutWebhooks(env, auth.userId, { type: 'presentation.completed', presentation_id: pres.id, title: pres.title, n_slides: validSlides.length });
     } catch (err) {
       return error(`Failed to generate slides: ${err?.message || 'unknown error'}`);
     }

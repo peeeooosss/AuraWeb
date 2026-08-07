@@ -293,24 +293,17 @@
 
 ---
 
-### Deployment: 2026-08-03 (Phase 1-4)
+### Deployment: 2026-08-03
 
 | Item | Value |
 |------|-------|
-| Deploy URL | `https://08245be5.arena-tryauraai.pages.dev` |
-| Platform | Cloudflare Pages (`arena-tryauraai`) |
-
-### Deployment: 2026-08-03 (Bug Fix)
-
-| Item | Value |
-|------|-------|
-| Arena Deploy | `https://f8f143fd.arena-tryauraai.pages.dev` |
-| Main Deploy | `https://aa52e58a.tryauraai.pages.dev` → `https://tryauraai.in` |
-| Platform | Cloudflare Pages |
-| Secrets | ZENGO_API_KEY, EXA_API_KEY, TAVILY_API_KEY, PEXELS_API_KEY (both projects) |
+| Phase 1-4 URL | `https://08245be5.arena-tryauraai.pages.dev` |
+| Bug Fix Arena | `https://f8f143fd.arena-tryauraai.pages.dev` |
+| Bug Fix Main | `https://aa52e58a.tryauraai.pages.dev` → **`https://tryauraai.in`** |
+| Project | `arena-tryauraai` (arena.tryauraai.in) + `tryauraai` (tryauraai.in) |
+| Secrets (both) | `ZENGO_API_KEY`, `EXA_API_KEY`, `TAVILY_API_KEY`, `PEXELS_API_KEY` |
 | KV Namespace | `ARENA_KV` (id: `e4a00421b3cf4ffc964733dd1c103f57`) |
-| Cloudflare Secrets | `ZENGO_API_KEY`, `EXA_API_KEY`, `TAVILY_API_KEY`, `PEXELS_API_KEY` |
-| Build | 11.7s, 246 files uploaded, 47 function files pass `node --check` |
+| Build | 11.7s initial, 29.6s bug-fix, 246 files, 47 functions |
 
 ### Verified Working
 - Template API: returns all 7 templates (executive, momentum, dynamic, general, modern, standard, swift)
@@ -324,7 +317,223 @@
 
 ---
 
-## Session: 2026-08-03 — Bug Fix: Empty Slide Content with DeepSeek v4-pro (Reasoning Model)
+## Session: 2026-08-03 — Transcript (Complete)
+
+### 1. User asked for missing API keys → Added EXA_API_KEY + TAVILY_API_KEY
+- User provided `EXA_API_KEY` and `TAVILY_API_KEY`
+- Wrote both keys into `.dev.vars`
+- Verified live: Exa (1.18s neural search) and Tavily (0.93s) both returning valid results
+- Restarted wrangler dev — all 5 secrets loaded correctly
+
+### 2. User asked to switch LLM provider → OpenRouter → OpenCode Zen Go
+- User specified: base URL `https://opencode.ai/zen/go/v1`, model `deepseek-v4-pro`, API key provided
+- Changed 6 files:
+  - `functions/_llm.js`: URL, key env var (`OPENROUTER_API_KEY` → `ZENGO_API_KEY`), function names, removed OpenRouter-specific headers
+  - `functions/_models.js`: internal IDs simplified (no `deepseek/` prefix), comments updated
+  - `src/shared/brain/client.js`: ChatBox URL, model registry (simplified to 2 models), removed Anthropic cache logic, removed OpenRouter headers
+  - `.env`: keys renamed (`ZENGO_API_KEY`, `ZENGO_MODEL`, `VITE_ZENGO_KEY`)
+  - `.dev.vars`: key renamed
+  - `wrangler.toml`: removed `OPENROUTER_MODEL`/`OPENROUTER_FALLBACK_MODEL`, added `ZENGO_MODEL`
+- Verified ZenGo API: `deepseek-v4-pro` returns valid completions
+
+### 3. User asked to test and deploy → Cloudflare Pages
+- Fixed `generate/async.js` import path (4→5 levels deep)
+- Compiled Worker successfully in `wrangler pages dev`
+- Set 4 Cloudflare secrets via `wrangler pages secret put`
+- Deployed to `arena-tryauraai` → `https://08245be5.arena-tryauraai.pages.dev`
+- Verified: template API returns 7 templates
+
+### 4. User reported empty slides — diagnosed and fixed DeepSeek reasoning model bug
+- **Root cause**: DeepSeek v4-pro is a reasoning model. With tight `max_tokens`, it exhausts all tokens on `reasoning_content` (chain-of-thought), leaving `content` empty. `llmJson`/`llmStructured`/`llmText`/`llmComplete` only read `content` — producing empty slides.
+- **4 fixes applied**:
+  - `_llm.js`: new `extractContent()` helper — reads `content` first, falls back to `reasoning_content`
+  - Token limits raised: outline 6k→10k, layout 2k→4k, slide 4k→8k
+  - `_slidegen.js:520`: `lines.write` → `lines.push` (was silent no-op on array)
+  - `presentation/stream/[id].js`: fallback now parses `outline.content` instead of discarding it
+- Verified: direct ZenGo test with 3-slide outline → all slides have 277–415 chars of real content
+
+### 5. User asked to deploy to main website → tryauraai.in
+- Synced all 4 secrets to `tryauraai` project via `wrangler pages secret put`
+- Deployed dist to `tryauraai` project → `https://aa52e58a.tryauraai.pages.dev`
+- Propagated to main domain → **`https://tryauraai.in`** — template API returns 7 templates
+
+### 6. User asked to save credentials + update memory1.md
+
+### Current State
+
+| Layer | Config |
+|-------|--------|
+| LLM Provider | OpenCode Zen Go (`opencode.ai/zen/go/v1`) |
+| Model | `deepseek-v4-pro` |
+| Web Search | Exa (primary) → Tavily (fallback) |
+| Stock Photos | Pexels → Pixabay |
+| Frontend ChatBox | ZenGo (`VITE_ZENGO_KEY`) |
+| Active Deploy (main) | `https://tryauraai.in` |
+| Active Deploy (arena) | `https://arena.tryauraai.in` |
+
+### Credentials (complete)
+
+| Key | Value |
+|-----|-------|
+| `ZENGO_API_KEY` | `sk-o09sQAuJbcz4Fa5jQ9r8p2KTFVKML7LOG4ANybrx6bL7x2SVyjRBVYqqCislmavD` |
+| `EXA_API_KEY` | `89488c18-f12f-4772-987a-d26a1b534574` |
+| `TAVILY_API_KEY` | `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` |
+| `PEXELS_API_KEY` | `ZrRj3zNUdsAhlUKCKh5mokIBM9PVAkAAWO2JO5dF2G5tUmStS3qFcl37` |
+| `VITE_ZENGO_KEY` | `sk-o09sQAuJbcz4Fa5jQ9r8p2KTFVKML7LOG4ANybrx6bL7x2SVyjRBVYqqCislmavD` |
+| `VITE_SUPABASE_URL` | `https://wuaqawwclchnoqljsfao.supabase.co` |
+| `VITE_SUPABASE_ANON_KEY` | `sb_publishable_WaoAQU17ocnWKvuR5HvTBA_ID9g1wXc` |
+| `VITE_RAZORPAY_KEY_ID` | `rzp_test_xxx` (placeholder) |
+
+### Files Modified in This Session
+
+| File | Change |
+|------|--------|
+| `.dev.vars` | Added EXA_API_KEY, TAVILY_API_KEY; replaced OPENROUTER with ZENGO_API_KEY |
+| `.env` | Replaced OPENROUTER with ZENGO keys; set VITE_ZENGO_KEY |
+| `wrangler.toml` | Removed OPENROUTER vars, added ZENGO_MODEL |
+| `functions/_llm.js` | ZenGo URL, extractContent() fallback for reasoning models |
+| `functions/_models.js` | Simplified internal IDs (no prefix), comment updates |
+| `src/shared/brain/client.js` | ZenGo URL, simplified model registry, removed Anthropic cache logic |
+| `functions/_slidegen.js` | Fixed `lines.write` → `lines.push` |
+| `functions/api/v1/ppt/presentation/stream/[id].js` | Token bumps + fallback uses outline.content |
+| `functions/api/v1/ppt/outlines/stream/[id].js` | Token bump 6k→10k |
+| `functions/api/v1/ppt/presentation/generate/async.js` | Fixed import path depth |
+| `memory1.md` | Full session transcript + credentials |
+
+### Files Created in This Session
+
+| File | Purpose |
+|------|---------|
+| `functions/_websearch.js` | Exa/Tavily/Serper adapters + query refinement |
+| `functions/api/v1/ppt/files/upload.js` | TXT/MD/PDF/DOCX text extraction |
+| `functions/api/v1/ppt/theme/generate.js` | LLM palette generation |
+| `functions/api/v1/ppt/chat/history.js` | GET/DELETE conversation history |
+| `functions/api/v1/ppt/presentation/generate/async.js` | Queue async generation |
+| `functions/api/v1/ppt/presentation/status/[id].js` | Task status from KV |
+
+### Known Issues (Not Fixed)
+- `public/_redirects`: SPA catch-all `/* → /index.html 200` intercepts API routes on first CDN hit but corrects after Function execution
+
+---
+
+## Session: 2026-08-03 — Arena Credit Deduction (Live Billing)
+
+### Objective
+- Make credit deduction work end-to-end: 2 credits on outline generation, 15–20 credits (scaled) on Generate Slides, header balance updating immediately.
+
+### Charge Rules
+| Action | Credits |
+|--------|---------|
+| Outline generation | 2 |
+| Generate Slides | `clamp(ceil(nSlides), 15, 20)` |
+| Create time | No charge |
+
+### Root Cause
+- `deductCredits()` treated ANY 2xx RPC response as success → never actually deducted.
+
+### Fix
+- **`functions/_plans.js:166`** `deductCredits` rewritten: only trusts the RPC result when it returns a numeric new balance; otherwise falls back to a direct upsert/decrement on `user_plans`.
+- Migration: `supabase/migrations/20260803000000_create_deduct_credits_fn.sql` (may need manual apply to prod DB, fallback makes it work without).
+- Verified live: balance 50 → 35 on 10-slide prepare (15 credits).
+- Commits: `248122f` (feat), `8613293` (TDZ fix).
+
+---
+
+## Session: 2026-08-03 — Tablely Dashboard Fixes (TDZ, Staff Links, Owner Auth)
+
+### Objective
+- Fix customer/staff/owner dashboards on all devices (phones, tablets), including a TDZ crash, staff redirects, and the owner dashboard link.
+
+### Two Separate Cloudflare Pages Projects (important)
+- `arena-tryauraai` → `arena.tryauraai.in`
+- `tablely-tryauraai` → `tablely.tryauraai.in`
+- Deployments must go to BOTH; tablely domain serves from `tablely-tryauraai`.
+
+### Fixes (commits in order: `8613293` → `82356fa` → `ba06023` → `a4f6ef1`)
+
+1. **TDZ crash** — `CustomerMenu.jsx`: `allItems` was used in `fastDeliveryItems` before its declaration ("Cannot access 'ut' before initialization"). Moved `allItems` before `fastDeliveryItems` (lines 83–92).
+2. **Stale deploy** — tablely was deployed to the wrong project. Re-deployed to `tablely-tryauraai`; added `<meta name="build-id">` cache-buster to `index.html`.
+3. **Staff link/redirects** (`ba06023`):
+   - `OwnerDashboard.jsx` staff card → clickable `Open Staff Login` anchor (`target="_blank"`) to `/:restaurantId/staff/login`.
+   - `ProtectedRoute.jsx:23-25`: staff-role mismatch redirects to `/:restaurantId/staff/login` instead of `/`.
+   - `AuthContext.jsx`: `signInAsStaff` sets `loading: true` before `setSession` to prevent hydration race.
+4. **Owner auth hydration race** (`a4f6ef1`):
+   - `signInAsOwner`/`signUpAsOwner` set `loading: true` before sign-in and `setLoading(false)` on error.
+   - `hydrateUser` wrapped in try/catch/finally — falls back to `user_metadata` on query failure so `loading` always resolves.
+
+### Dashboard Button Verification
+- Live site confirmed running latest bundle (chunk `App-7uHM3YxW.js` contains `hydrateUser failed` + `Open Staff Login`).
+- Restaurant `chakna` exists in `restaurants` (owner_id `0cbd3aa3-…`); all related tables have public-read RLS.
+- Full E2E verified with a throwaway owner account + test restaurant: login → Dashboard button appears → navigates to owner dashboard. Test data cleaned up afterward.
+- 28/28 device checks passed (iPhone, Android, iPad, Android Tablet) across homepage, owner login, staff login, customer login, demo, and redirects.
+
+---
+
+*End of memory*
+
+---
+
+## Session: 2026-08-04 — Arena Slides Content Density Restoration (Match Presentron)
+
+### Problem
+- Per-slide content was sparse/terse compared to Presentron, even though templates (which carry `min_length`/`max_length` constraints) are byte-for-byte identical between the two repos.
+- Root cause: Arena's per-slide LLM call used soft `json_object` mode (schema only advisory text in prompt), while Presentron enforces constraints via strict `json_schema` response_format + a validation retry loop.
+
+### Investigation
+- Diffed both codebases' slide-generation stacks (prompts, schemas, LLM helpers, model routing).
+- Confirmed template `min_length`/`max_length` values are identical across all 7 templates (executive/momentum/dynamic/general/modern/standard/swift).
+- Identified 9 differences responsible for the sparseness; user approved fixing all 9.
+
+### Fixes Applied (all in `functions/`, no frontend changes)
+
+| # | Fix | File | Change |
+|---|-----|------|--------|
+| 1 | Strict `json_schema` response mode for per-slide content call | `api/v1/ppt/presentation/stream/[id].js` | `generateSlideContent` rewritten — `llmJson` → `llmStructured` with `responseFormat: { type:'json_schema', json_schema:{ name:'slide_content', schema, strict:false } }` |
+| 2 | Schema validation retry loop (3 passes) | `_slidegen.js` + `presentation/stream/[id].js` | New `validateSlideContent(content, schema)` export walks schema recursively, checks `minLength`/`maxLength`/`minItems`/`maxItems`; on violation, appends assistant + user-feedback messages and re-calls LLM |
+| 3 | Removed layout-prompt content truncation | `_slidegen.js:layoutSelectionPrompt` | `outlines[i].content.slice(0,300)` → full content |
+| 4 | Removed layout-description truncation | `_slidegen.js:layoutSelectionPrompt` | `l.description.slice(0,200)` → full description |
+| 5 | Added markdown emphasis rule | `_slidegen.js:slideContentPrompt` | `"- Strictly use markdown to emphasize important points, by bolding or italicizing the part of text."` |
+| 6 | Raised slide-content temperature | `presentation/stream/[id].js` | `0.7` → `0.9` (closer to Presentron's unset ~1.0 default) |
+| 7 | Raised slide-content max_tokens | `presentation/stream/[id].js` | `8000` → `16000` |
+| 8 | Strengthened verbosity wording | `_slidegen.js:slideContentPrompt` | `"Be detailed and text-heavy."` → `"# Verbosity Instructions:\nMake slide as text-heavy as possible. Fill every text field close to its maxLength."` (and similar for concise/standard); added `"For each text field, write content close to its maxLength."` before `# Output Fields:` |
+| 9 | Raised `MAX_OUTLINE_WORDS` cap | `api/v1/ppt/outlines/stream/[id].js` | `80` → `100` (matches Presentron `MAX_OUTLINE_CONTENT_WORDS`) |
+
+### Model Decision
+- Kept `deepseek-v4-pro` as the default for slide generation (not switched to `kimi-k2.7-code`).
+- Reasoning: Presentron gets dense slides via schema strictness (Fix #1+#2), not better prose. Reasoning models are actually better at structured output; switching models is the wrong lever.
+- Fallback chain `deepseek-v4-pro → kimi-k2.7-code` already covers failure cases (and kimi-k2.7-code is code-tuned, less natural at marketing copy).
+
+### Files Modified (3)
+
+| File | Lines touched |
+|------|--------------|
+| `functions/api/v1/ppt/presentation/stream/[id].js` | imports (drop `llmJson`/`cleanJsonText`, add `validateSlideContent`); `generateSlideContent` rewrite (83-163): strict `json_schema` + retry loop + temp 0.9 + max_tokens 16000 |
+| `functions/_slidegen.js` | `layoutSelectionPrompt` (lines ~454, ~470 — drop truncations); `slideContentPrompt` (510, 519-521, 530 — markdown rule + verbosity wording + fill-to-max instruction); new `validateSlideContent` export (~577); |
+| `functions/api/v1/ppt/outlines/stream/[id].js` | `MAX_OUTLINE_WORDS = 100` (line 8) |
+
+### Verification
+- esbuild parses all 3 modified files cleanly with no errors (Worker-compatible ESM).
+- Exports confirmed present: `layoutSelectionPrompt`, `slideContentPrompt`, `prepareResponseSchema`, `validateSlideContent`.
+- Local wrangler dev test + live generation test pending user run.
+
+### Risk Notes
+- ~1.8–2x token cost per slide (longer fields + retries + higher max_tokens).
+- Retry loop only triggers on schema violations (rare after first run for `deepseek-v4-pro`).
+- If ZenGo rejects `json_schema` strict for slide content (Stage 1 layout selection already uses this mode successfully), the retry-loop branch's `catch {}` will degrade gracefully to empty content (template defaults preserved).
+
+### Next Steps (suggested)
+1. Run `wrangler pages dev` locally with all 5 secrets loaded (per Aug-3 session).
+2. Generate a 3-slide test deck for `"AI in Healthcare"`, verb=text-heavy, and compare per-field char counts vs the chosen layout's `minLength`/`maxLength` — expect values close to maxLength.
+3. Deploy to `arena-tryauraai` Cloudflare Pages project (and `tryauraai` for the main domain if confirmed working).
+
+---
+
+## Finding: ZenGo + deepseek-v4-pro does NOT support `json_schema`
+
+- **Date**: 2026-08-05
+- **Observation**: ZenGo's implementation of `deepseek-v4-pro` does not support `response_format: { type: 'json_schema', ... }`. Attempting to use it causes failures or the response falls back to unstructured text.
+- **Future Plan**: Switch to **OpenRouter** for features that require strict `json_schema` / structured output. OpenRouter's proxy supports `json_schema` properly, so any new feature needing schema-constrained generation should use OpenRouter instead of ZenGo.
+- **Action**: When the next feature requiring `json_schema` is built, wire it through OpenRouter (`openrouter.ai/api/v1/chat/completions`) rather than ZenGo.
 
 ---
 

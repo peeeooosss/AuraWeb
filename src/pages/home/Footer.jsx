@@ -7,6 +7,8 @@ const footerLinks = {
     { name: 'AURA Restro', href: 'https://tablely.tryauraai.in' },
     { name: 'AURA Coach', href: 'https://coach.tryauraai.in' },
     { name: 'AURA Career', href: 'https://career.tryauraai.in' },
+    { name: 'AURA Slides', href: 'https://arena.tryauraai.in' },
+    { name: 'CYPHR', href: 'https://joincyphr.vercel.app' },
   ],
   Company: [
     { name: 'About Us', href: '#agency' },

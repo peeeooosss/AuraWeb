@@ -11,6 +11,7 @@ export const INTERNAL_MODELS = {
   'deepseek-v4-pro': 'deepseek-v4-pro',
   'deepseek-v4-flash': 'deepseek-v4-flash',
   'kimi-k2.7-code': 'kimi-k2.7-code',
+  'gpt-5.6-luna': 'gpt-5.6-luna',
 };
 
 // Customer-facing aliases (USD -> INR prices per 1M tokens)
@@ -36,6 +37,12 @@ export const PRICING = {
     input_inr_per_mtok: 300,
     output_inr_per_mtok: 1500,
   },
+  // Fast / cheap outline model
+  'luna': {
+    internal: INTERNAL_MODELS['gpt-5.6-luna'],
+    input_inr_per_mtok: 15,
+    output_inr_per_mtok: 30,
+  },
 };
 
 export const DEFAULT_MODEL_ALIAS = 'claude-sonnet-5';
@@ -45,6 +52,7 @@ export const FALLBACK_CHAIN = {
   [INTERNAL_MODELS['deepseek-v4-pro']]: INTERNAL_MODELS['kimi-k2.7-code'],
   [INTERNAL_MODELS['deepseek-v4-flash']]: INTERNAL_MODELS['deepseek-v4-pro'],
   [INTERNAL_MODELS['kimi-k2.7-code']]: INTERNAL_MODELS['deepseek-v4-pro'],
+  [INTERNAL_MODELS['gpt-5.6-luna']]: INTERNAL_MODELS['deepseek-v4-flash'],
 };
 
 /**
@@ -89,6 +97,7 @@ export function computeInternalCost(internalModel, inputTokens, outputTokens) {
     [INTERNAL_MODELS['deepseek-v4-pro']]: { inUsd: 0.44, outUsd: 0.87 },
     [INTERNAL_MODELS['deepseek-v4-flash']]: { inUsd: 0.09, outUsd: 0.18 },
     [INTERNAL_MODELS['kimi-k2.7-code']]: { inUsd: 0.61, outUsd: 3.07 },
+    [INTERNAL_MODELS['gpt-5.6-luna']]: { inUsd: 0.05, outUsd: 0.10 },
   };
   const c = costs[internalModel] || costs[INTERNAL_MODELS['deepseek-v4-pro']];
   const costUsd =

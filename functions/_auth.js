@@ -115,11 +115,8 @@ export async function validateApiKey(apiKey, env) {
 }
 
 export async function requireAuth(request, env) {
-  const authHeader = request.headers.get('Authorization') || '';
-  if (!authHeader.startsWith('Bearer ')) {
-    throw new Error('Authorization header required');
-  }
-  const token = authHeader.slice(7);
+  const token = bearerToken(request);
+  if (!token) throw Object.assign(new Error('Authentication required'), { status: 401 });
 
   if (validateApiKeyPrefix('aurai_live', token)) {
     const keyData = await validateApiKey(token, env);
@@ -153,25 +150,26 @@ export async function checkRateLimit(apiKeyId, userId, rateLimit, env) {
 
 export async function deductBalance(apiKeyId, cost, env) {
   const url = supabaseUrl(env);
-  if (!url || !apiKeyId || cost <= 0) return;
-  try {
-    const res = await fetch(`${url}/rest/v1/rpc/deduct_balance`, {
-      method: 'POST',
-      headers: supabaseHeaders(env, true),
-      body: JSON.stringify({ p_key_id: apiKeyId, p_cost: cost }),
-    });
-    const text = await res.text();
-    if (!res.ok) {
-      throw new Error(`RPC ${res.status}: ${text}`);
-    }
-    // Returns new balance as a number, or -1 if insufficient funds
-    const newBalance = Number(JSON.parse(text));
-    if (newBalance < 0) {
-      throw new Error('Insufficient balance');
-    }
-  } catch (err) {
-    console.error('deductBalance error:', err.message);
+  if (!url) throw new Error('Supabase not configured');
+  if (!apiKeyId || cost <= 0) throw new Error('Invalid deduction');
+  const res = await fetch(`${url}/rest/v1/rpc/deduct_balance`, {
+    method: 'POST',
+    headers: supabaseHeaders(env, true),
+    body: JSON.stringify({ p_key_id: apiKeyId, p_cost: cost }),
+  });
+  const text = await res.text();
+  if (!res.ok) {
+    throw new Error(`RPC ${res.status}: ${text}`);
   }
+  const newBalance = Number(JSON.parse(text));
+  if (newBalance < 0) {
+    const err = new Error('Insufficient balance');
+    err.code = 'WALLET_INSUFFICIENT';
+    err.status = 402;
+    err.newBalance = newBalance;
+    throw err;
+  }
+  return newBalance;
 }
 
 export async function logUsage({ userId, apiKeyId, endpoint, inputTokens, outputTokens, cost, modelRouted }, env) {

@@ -2,8 +2,9 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import {
   Download, FileText, Loader, AlertCircle, ChevronLeft, ChevronRight,
-  Play, X, Sparkles, MessageSquare,
+  Play, X, Sparkles, MessageSquare, RefreshCw,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import SlideRenderer from '../components/SlideRenderer';
 import { exportSlides, triggerDownload } from '../lib/exportClient.jsx';
 import { authFetch } from '../lib/api';
@@ -150,71 +151,162 @@ export default function PresentationPage() {
       return;
     }
 
-    setStreamStatus('Connecting...');
-    setStreaming(true);
-    setLoading(false);
+    const MAX_RETRIES = 3;
+    const CONNECT_TIMEOUT_MS = 15000;
+    let retryCount = 0;
+    let isClosed = false;
+    let connectionTimer = null;
+    let retryTimer = null;
     let es = null;
     let cancelled = false;
-    (async () => {
-      const token = await getAccessToken();
-      if (cancelled) return;
-      const streamUrl = token
-        ? `/api/v1/ppt/presentation/stream/${id}?token=${encodeURIComponent(token)}`
-        : `/api/v1/ppt/presentation/stream/${id}`;
+
+    const clearTimers = () => {
+      if (connectionTimer) { clearTimeout(connectionTimer); connectionTimer = null; }
+      if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; }
+    };
+
+    const closeES = () => { try { es?.close(); } catch {} es = null; };
+
+    const scheduleRetry = (reason) => {
+      if (isClosed || cancelled) return;
+      if (retryCount >= MAX_RETRIES) {
+        setStreaming(false);
+        setLoading(false);
+        setError(`Stream failed after ${MAX_RETRIES} attempts. Check your connection and try again.`);
+        toast.error('Stream failed', { description: reason || 'Could not connect to the server.' });
+        return;
+      }
+      retryCount++;
+      closeES();
+      clearTimers();
+      setStreamStatus(`Reconnecting (attempt ${retryCount}/${MAX_RETRIES})...`);
+      retryTimer = setTimeout(() => {
+        if (!isClosed && !cancelled) openStream();
+      }, 1000 * retryCount);
+    };
+
+    const openStream = async () => {
+      closeES();
+      clearTimers();
+
+      let streamUrl;
+      try {
+        const token = await getAccessToken();
+        streamUrl = token
+          ? `/api/v1/ppt/presentation/stream/${id}?token=${encodeURIComponent(token)}`
+          : `/api/v1/ppt/presentation/stream/${id}`;
+      } catch {
+        setStreaming(false);
+        setError('Authentication failed. Please sign in again.');
+        return;
+      }
+
       es = new EventSource(streamUrl);
 
-    es.addEventListener('response', (event) => {
-      if (completedRef.current) return;
-      try {
-        const d = JSON.parse(event.data);
+      connectionTimer = setTimeout(() => {
+        closeES();
+        scheduleRetry('connection timeout');
+      }, CONNECT_TIMEOUT_MS);
+
+      es.addEventListener('response', (event) => {
+        if (isClosed || cancelled || completedRef.current) return;
+
+        if (connectionTimer) { clearTimeout(connectionTimer); connectionTimer = null; }
+
+        let d;
+        try { d = JSON.parse(event.data); } catch { return; }
+
         if (d.type === 'status') {
           setStreamStatus(d.status);
         } else if (d.type === 'chunk') {
           const slide = d.chunk;
           if (slide && typeof slide.index === 'number') {
             setPresentation(prev => {
-              const slides = [...(prev?.slides || [])];
-              while (slides.length <= slide.index) slides.push(null);
-              slides[slide.index] = slide;
+              const existing = [...(prev?.slides || [])];
+              while (existing.length <= slide.index) existing.push(null);
+              existing[slide.index] = slide;
               return {
+                ...(prev || {}),
                 id: prev?.id || id,
                 title: prev?.title || '',
-                slides: slides.filter(Boolean),
+                slides: existing.filter(Boolean),
               };
             });
-            setStreamStatus(`Slide ${slide.index + 1} of ${totalSlidesRef.current || '?'} ready`);
+            setStreamStatus(`Generating slide ${slide.index + 1}...`);
             if (autoAdvanceRef.current) {
               setCurrentSlide(slide.index);
             }
           }
         } else if (d.type === 'complete') {
           if (d.presentation) {
+            isClosed = true;
             completedRef.current = true;
             totalSlidesRef.current = d.presentation.slides?.length || 0;
             setPresentation(d.presentation);
             setStreaming(false);
             setStreamStatus('');
+            setLoading(false);
             window.dispatchEvent(new CustomEvent('credits:updated'));
-            es.close();
+            closeES();
+            clearTimers();
+            retryCount = 0;
+            try {
+              const url = new URL(window.location.href);
+              url.searchParams.delete('stream');
+              url.searchParams.delete('type');
+              window.history.replaceState({}, '', url.toString());
+            } catch {}
+          }
+        } else if (d.type === 'closing') {
+          if (d.presentation) {
+            isClosed = true;
+            completedRef.current = true;
+            totalSlidesRef.current = d.presentation.slides?.length || 0;
+            setPresentation(d.presentation);
+            setStreaming(false);
+            setStreamStatus('');
+            setLoading(false);
+            window.dispatchEvent(new CustomEvent('credits:updated'));
+            closeES();
+            clearTimers();
+            retryCount = 0;
           }
         } else if (d.type === 'error') {
-          completedRef.current = true;
-          setError(d.detail || 'Stream error');
-          setStreaming(false);
-          es.close();
+          if (retryCount > 0 && !isClosed) {
+            closeES();
+            scheduleRetry(d.detail || 'server error');
+          } else {
+            isClosed = true;
+            completedRef.current = true;
+            setError(d.detail || 'Stream error');
+            setStreaming(false);
+            setLoading(false);
+            closeES();
+            clearTimers();
+            toast.error('Generation failed', { description: d.detail || 'The server encountered an error.' });
+          }
         }
-      } catch {}
-    });
+      });
 
-    es.onerror = () => {
-      if (!completedRef.current && es.readyState === EventSource.CLOSED) {
-        setStreaming(false);
-        setError('Stream ended without completing');
-      }
+      es.onerror = () => {
+        if (isClosed || cancelled) return;
+        closeES();
+        clearTimers();
+        scheduleRetry('connection lost');
+      };
     };
-    })();
 
-    return () => { cancelled = true; completedRef.current = true; es?.close(); };
+    setStreamStatus('Connecting...');
+    setStreaming(true);
+    setLoading(false);
+    openStream();
+
+    return () => {
+      cancelled = true;
+      isClosed = true;
+      closeES();
+      clearTimers();
+    };
   }, [id, shouldStream]);
 
   useEffect(() => {
@@ -242,13 +334,45 @@ export default function PresentationPage() {
 
   if (error) {
     return (
-      <div className="max-w-3xl mx-auto px-6 py-20 flex flex-col items-center gap-4">
-        <AlertCircle size={32} className="text-red-400" />
-        <p className="text-sm text-red-600">{error}</p>
-        <div className="flex items-center gap-3">
-          <Link to="/dashboard" className="text-sm text-purple-500 hover:underline">Back to Dashboard</Link>
-          <button onClick={() => window.location.reload()} className="text-sm text-[#7A5AF8] hover:underline">Retry</button>
+      <div className="h-[calc(100vh-64px)] flex items-center justify-center bg-[var(--p-bg-section)]">
+        <div className="bg-white border border-red-200 rounded-2xl px-8 py-10 shadow-lg flex flex-col items-center max-w-md mx-auto text-center">
+          <AlertCircle size={40} className="text-red-400 mb-4" />
+          <h2 className="text-lg font-semibold text-[#101323] mb-2">Generation failed</h2>
+          <p className="text-sm text-[#808080] mb-6">{error}</p>
+          <div className="flex items-center gap-3">
+            <Link
+              to="/dashboard"
+              className="px-4 py-2 rounded-full text-sm font-medium text-[#808080] border border-[#EDEEEF] hover:bg-gray-50 transition-colors"
+            >
+              Back to Dashboard
+            </Link>
+            <Link
+              to={`/outline?id=${id}`}
+              className="px-4 py-2 rounded-full text-sm font-medium text-[#808080] border border-[#EDEEEF] hover:bg-gray-50 transition-colors"
+            >
+              Edit Outline
+            </Link>
+            <button
+              onClick={() => {
+                setError(null);
+                setStreamStatus('');
+                window.location.reload();
+              }}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium text-white bg-gradient-to-r from-cyan-500 to-purple-600 hover:opacity-90 transition-opacity shadow-lg shadow-purple-500/20"
+            >
+              <RefreshCw size={14} /> Retry
+            </button>
+          </div>
         </div>
+      </div>
+    );
+  }
+
+  if (loading && !streaming) {
+    return (
+      <div className="h-[calc(100vh-64px)] flex flex-col items-center justify-center gap-4 bg-[var(--p-bg-section)]">
+        <Loader size={32} className="text-purple-400 animate-spin" />
+        <p className="text-sm text-[#808080]">Loading presentation...</p>
       </div>
     );
   }

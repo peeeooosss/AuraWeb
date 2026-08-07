@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Loader2, Sparkles } from 'lucide-react';
+import { toast } from 'sonner';
 import TemplatePicker from '../components/outline/TemplatePicker';
 import OutlineContent from '../components/outline/OutlineContent';
 import GenerateButton from '../components/outline/GenerateButton';
 import ChatPanel from '../components/outline/ChatPanel';
+import GenerationOverlay from '../components/GenerationOverlay';
 import { useOutlineStreaming } from '../hooks/useOutlineStreaming';
 import { useOutlineManagement } from '../hooks/useOutlineManagement';
 import { useGenerateFromOutline } from '../hooks/useGenerateFromOutline';
@@ -26,7 +28,7 @@ export default function OutlinePage() {
   );
 
   const { handleDragEnd, handleAddSlide, handleUpdateSlide, handleDeleteSlide } = useOutlineManagement(outlines, setOutlines);
-  const { generate, loading: generating, error: genError } = useGenerateFromOutline();
+  const { generate, loading: generating, error: genError, step: genStep } = useGenerateFromOutline();
 
   // Load presentation title
   useEffect(() => {
@@ -74,9 +76,29 @@ export default function OutlinePage() {
     );
   }
 
+  // Map useGenerateFromOutline steps to overlay steps
+  const overlayStepMap = {
+    saving: 'outlining',
+    preparing: 'streaming',
+    navigating: 'done',
+  };
+  const overlayStep = genStep ? (overlayStepMap[genStep] || 'outlining') : null;
+  const overlayStatus = genStep === 'preparing'
+    ? 'Preparing your slides...'
+    : genStep === 'navigating'
+      ? 'Almost there!'
+      : 'Saving outline...';
+
   if (stage === 'template') {
     return (
       <div className="min-h-screen bg-white">
+        {generating && (
+          <GenerationOverlay
+            step={overlayStep}
+            status={overlayStatus}
+            estimatedSeconds={45}
+          />
+        )}
         <TemplatePicker
           onSelect={handleTemplateSelect}
           selectedId={null}
@@ -87,6 +109,13 @@ export default function OutlinePage() {
 
   return (
     <div className="min-h-screen bg-white flex">
+      {generating && (
+        <GenerationOverlay
+          step={overlayStep}
+          status={overlayStatus}
+          estimatedSeconds={45}
+        />
+      )}
       {/* Main Content */}
       <div className="flex-1 min-w-0 pb-24">
         {/* Outline content */}

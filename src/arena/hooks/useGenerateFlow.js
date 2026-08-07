@@ -41,14 +41,13 @@ export function useGenerateFlow() {
       const presentationId = presentation.id;
       if (!presentationId) throw new Error('No presentation ID returned');
 
-      // Don't start SSE here — return ID for the outline page to handle
-      setStep('done');
-      setStatus('Presentation created');
-      setGenerating(false);
+      setStep('outlining');
+      setStatus('Presentation created — loading outline page...');
 
       return { id: presentationId, success: true };
     } catch (e) {
       setError(e.message || 'Generation failed');
+      setStep('done');
       setGenerating(false);
       return null;
     }

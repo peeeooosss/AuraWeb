@@ -1,5 +1,5 @@
 import { json, jsonError, genId, nowIso, clamp } from '../../../../../_lib';
-import { requireUser } from '../../../../../_auth';
+import { requireAuth } from '../../../../../_auth';
 
 export const onRequestPost = async ({ request, env }) => {
   let body = {};
@@ -14,9 +14,9 @@ export const onRequestPost = async ({ request, env }) => {
     return jsonError('content is required', 400);
   }
 
-  let user;
+  let auth;
   try {
-    user = await requireUser(request, env);
+    auth = await requireAuth(request, env);
   } catch (err) {
     return jsonError(err.message, err.status || 401);
   }
@@ -43,7 +43,7 @@ export const onRequestPost = async ({ request, env }) => {
     slides: [],
   };
 
-  await env.ARENA_KV.put(`pres:${user.id}:${id}`, JSON.stringify(pres));
+  await env.ARENA_KV.put(`pres:${auth.userId}:${id}`, JSON.stringify(pres));
   return json({ ...pres }, 201);
 };
 

@@ -1,10 +1,10 @@
 import { json, jsonError, getPresentation, savePresentation } from '../../../../_lib';
-import { requireUser } from '../../../../_auth';
+import { requireAuth } from '../../../../_auth';
 
 export const onRequestGet = async ({ params, env, request }) => {
   try {
-    const user = await requireUser(request, env);
-    const pres = await getPresentation(env, user.id, params.id);
+    const auth = await requireAuth(request, env);
+    const pres = await getPresentation(env, auth.userId, params.id);
     if (!pres) return jsonError('Presentation not found', 404);
     return json(pres.outlines || { title: '', slides: [] });
   } catch (err) {
@@ -20,14 +20,14 @@ export const onRequestPut = async ({ request, params, env }) => {
     // ignore
   }
 
-  let user;
+  let auth;
   try {
-    user = await requireUser(request, env);
+    auth = await requireAuth(request, env);
   } catch (err) {
     return jsonError(err.message, err.status || 401);
   }
 
-  const pres = await getPresentation(env, user.id, params.id);
+  const pres = await getPresentation(env, auth.userId, params.id);
   if (!pres) return jsonError('Presentation not found', 404);
 
   const slides = Array.isArray(body.slides)
@@ -40,7 +40,7 @@ export const onRequestPut = async ({ request, params, env }) => {
   pres.n_slides = slides.length;
   pres.status = 'outlined';
 
-  await savePresentation(env, user.id, pres);
+  await savePresentation(env, auth.userId, pres);
   return json(pres.outlines);
 };
 

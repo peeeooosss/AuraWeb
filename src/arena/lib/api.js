@@ -19,8 +19,12 @@ export async function authFetch(url, options = {}) {
     throw new Error('Session expired. Please sign in again.');
   }
   headers.set('Authorization', `Bearer ${token}`);
-  if (options.body && typeof options.body !== 'string') {
-    headers.set('Content-Type', 'application/json');
+  if (options.body) {
+    if (options.body instanceof FormData) {
+      // Let browser set multipart boundary
+    } else {
+      headers.set('Content-Type', 'application/json');
+    }
   }
   const res = await fetch(url, { ...options, headers });
   if (res.status === 401) {
@@ -200,4 +204,14 @@ export async function verifyWalletTopup({ keyId, razorpay_order_id, razorpay_pay
 
 export async function getWalletTopupHistory() {
   return directRequest('GET', '/api/v1/wallet/history');
+}
+
+export async function updateApiKey(id, patch) {
+  return directRequest('PATCH', `/api/v1/keys/${id}`, patch);
+}
+
+export async function getUsageLogs({ apiKeyId, days = 30, limit = 100 } = {}) {
+  let path = `/api/v1/usage/logs?days=${days}&limit=${limit}`;
+  if (apiKeyId) path += `&api_key_id=${encodeURIComponent(apiKeyId)}`;
+  return directRequest('GET', path);
 }

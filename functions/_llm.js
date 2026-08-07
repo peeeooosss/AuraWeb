@@ -38,6 +38,7 @@ async function callZenGo(env, opts) {
   const { apiKey } = llmConfig(env);
   if (!apiKey) throw new Error('ZENGO_API_KEY is not configured');
   const body = buildBody(opts);
+  const timeoutMs = opts.timeoutMs || (opts.stream ? 25000 : 15000);
   const res = await fetch(ZENGO_URL, {
     method: 'POST',
     headers: {
@@ -45,6 +46,7 @@ async function callZenGo(env, opts) {
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout(timeoutMs),
   });
   if (!res.ok) {
     const text = await res.text().catch(() => '');
@@ -62,7 +64,12 @@ function buildModelChain(requestedModel, env) {
 
 export async function llmChat(env, opts) {
   assertKey(env);
-  const models = buildModelChain(opts.model, env);
+  // Streaming endpoints should never chain fallbacks; waiting for a slow primary
+  // to fail and then retrying a second model doubles perceived latency.
+  const noFallback = opts.noFallback || opts.stream === true;
+  const models = noFallback
+    ? [resolveModelAlias(opts.model || env?.ZENGO_MODEL || DEFAULT_MODEL)]
+    : buildModelChain(opts.model, env);
   let lastErr;
   for (const model of models) {
     try {

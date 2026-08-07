@@ -1,5 +1,6 @@
 import { json, jsonError } from '../../../_lib';
 import { requireUser, supabaseHeaders } from '../../../_auth';
+import { MIN_TOPUP_USD, usdToInr } from '../../../_b2b';
 
 export const onRequestPost = async ({ request, env }) => {
   let body = {};
@@ -18,7 +19,7 @@ export const onRequestPost = async ({ request, env }) => {
 
   const { key_id, amount } = body;
   if (!key_id) return jsonError('key_id is required', 400);
-  if (!amount || Number(amount) < 1) return jsonError('amount must be at least ₹1', 400);
+  if (!amount || Number(amount) < MIN_TOPUP_USD) return jsonError(`amount must be at least $${MIN_TOPUP_USD}`, 400);
 
   if (!env.VITE_RAZORPAY_KEY_ID || !env.RAZORPAY_KEY_SECRET) {
     return jsonError('Payments not configured', 500);
@@ -40,6 +41,8 @@ export const onRequestPost = async ({ request, env }) => {
   }
 
   try {
+    const amountInrPaise = Math.round(usdToInr(Number(amount), env) * 100);
+
     const auth = btoa(`${env.VITE_RAZORPAY_KEY_ID}:${env.RAZORPAY_KEY_SECRET}`);
     const res = await fetch('https://api.razorpay.com/v1/orders', {
       method: 'POST',
@@ -48,7 +51,7 @@ export const onRequestPost = async ({ request, env }) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        amount: Math.round(Number(amount) * 100), // paise
+        amount: amountInrPaise,
         currency: 'INR',
         receipt: `topup_${key_id.slice(0, 8)}_${Date.now().toString(36)}`,
         notes: { key_id, user_id: user.id, type: 'wallet_topup', key_name: keyName },
@@ -69,7 +72,7 @@ export const onRequestPost = async ({ request, env }) => {
           user_id: user.id,
           api_key_id: key_id,
           razorpay_order_id: order.id,
-          amount: Math.round(Number(amount) * 100) / 100,
+          amount: Number(amount),
           status: 'pending',
         }),
       });
